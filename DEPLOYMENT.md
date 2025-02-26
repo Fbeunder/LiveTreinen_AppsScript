@@ -5,7 +5,7 @@ Dit document beschrijft hoe je de LiveTreinen_AppsScript code kunt deployen naar
 ## Stap 1: Ga naar het Google Apps Script project
 
 1. Log in bij Google en ga naar [Google Apps Script](https://script.google.com/)
-2. Open het project met ID `AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP`
+2. Open het project met ID `1EVkPWScAsUenvx7cZBDdr-6yKmZh_nZq7QZnZtAUjIb0ZJ5yemckku4t`
    - Als je geen toegang hebt tot dit specifieke project, maak dan een nieuw project aan.
 
 ## Stap 2: Bestanden toevoegen
