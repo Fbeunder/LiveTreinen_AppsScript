@@ -27,6 +27,36 @@ function doGet(e) {
       var journey = getJourneyDetails(trainNumber);
       return ContentService.createTextOutput(JSON.stringify(journey))
                            .setMimeType(ContentService.MimeType.JSON);
+    } else if (e.parameter && e.parameter.action == "getCacheStats") {
+      // Endpoint voor het ophalen van cache-statistieken
+      var stats = getCacheStatistics();
+      return ContentService.createTextOutput(JSON.stringify(stats))
+                           .setMimeType(ContentService.MimeType.JSON);
+    } else if (e.parameter && e.parameter.action == "resetCacheStats") {
+      // Endpoint voor het resetten van cache-statistieken
+      var result = resetCacheStatistics();
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    } else if (e.parameter && e.parameter.action == "refreshTrainData") {
+      // Endpoint voor het geforceerd vernieuwen van data voor een specifieke trein
+      var trainNumber = e.parameter.train;
+      if (!trainNumber) {
+        return createErrorResponse('Geen treinnummer opgegeven', 400);
+      }
+      var result = refreshTrainData(trainNumber);
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    } else if (e.parameter && e.parameter.action == "checkCache") {
+      // Endpoint voor het controleren of data voor een trein in cache zit
+      var trainNumber = e.parameter.train;
+      if (!trainNumber) {
+        return createErrorResponse('Geen treinnummer opgegeven', 400);
+      }
+      var hasFresh = hasFreshCache(trainNumber);
+      return ContentService.createTextOutput(JSON.stringify({
+        trainNumber: trainNumber,
+        hasFreshCache: hasFresh
+      })).setMimeType(ContentService.MimeType.JSON);
     } else {
       // Serveer de HTML-interface
       let htmlOutput = HtmlService.createHtmlOutputFromFile('Index')
