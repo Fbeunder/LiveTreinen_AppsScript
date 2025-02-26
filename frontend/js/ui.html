@@ -1,0 +1,228 @@
+<script>
+/**
+ * UI module - Verantwoordelijk voor gebruikersinterface-elementen
+ * @namespace UI
+ */
+var UI = (function() {
+  // Private variabelen
+  var _lastApiStatus = null;
+  
+  /**
+   * Initialiseer UI eventlisteners
+   */
+  function init() {
+    // Toon alle treinen knop
+    document.getElementById('btnShowAll').addEventListener('click', function() {
+      App.showAllTrains();
+    });
+    
+    // Filter input velden
+    document.getElementById('filterNumber').addEventListener('input', function() {
+      App.applyFilters();
+    });
+    document.getElementById('filterLocation').addEventListener('input', function() {
+      App.applyFilters();
+    });
+    
+    // Cache Stats toggle
+    document.getElementById('cacheStatsToggle').addEventListener('click', function() {
+      toggleCacheStatsPanel();
+    });
+    
+    // Refresh cache stats knop
+    document.getElementById('refreshStats').addEventListener('click', fetchCacheStats);
+    
+    // Reset cache stats knop
+    document.getElementById('resetStats').addEventListener('click', function() {
+      resetCacheStats();
+      setTimeout(fetchCacheStats, 500); // Refresh na korte vertraging
+    });
+    
+    // Sluit cache stats panel
+    document.getElementById('closeCacheStats').addEventListener('click', function() {
+      document.getElementById('cacheStatsPanel').style.display = 'none';
+    });
+    
+    // Error details toggle
+    document.getElementById('btnShowDetails').addEventListener('click', function() {
+      toggleErrorDetails();
+    });
+  }
+  
+  /**
+   * Update API status indicator
+   * @param {string} status - Status code (ok, warning, error)
+   * @param {string} [message] - Optioneel bericht
+   * @param {Object} [details] - Optionele details voor in de error toast
+   */
+  function updateApiStatus(status, message, details) {
+    _lastApiStatus = status;
+    var indicator = document.getElementById('apiStatusIndicator');
+    var statusText = document.getElementById('apiStatus');
+    
+    // Verwijder alle bestaande classes
+    indicator.classList.remove('status-ok', 'status-warning', 'status-error');
+    
+    // Update indicator en text
+    if (status === 'ok') {
+      indicator.classList.add('status-ok');
+      statusText.textContent = 'API status: OK';
+    } else if (status === 'warning') {
+      indicator.classList.add('status-warning');
+      statusText.textContent = 'API status: Waarschuwing';
+      showErrorMessage('Waarschuwing', message, details);
+    } else if (status === 'error') {
+      indicator.classList.add('status-error');
+      statusText.textContent = 'API status: Fout';
+      showErrorMessage('Fout', message, details);
+    } else {
+      indicator.classList.add('status-warning');
+      statusText.textContent = 'API status: Onbekend';
+    }
+  }
+  
+  /**
+   * Toon error toast met details
+   * @param {string} title - Titel van de foutmelding
+   * @param {string} message - Bericht
+   * @param {Object} [details] - Details voor in het details panel
+   */
+  function showErrorMessage(title, message, details) {
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMessage').textContent = message || 'Er is een fout opgetreden.';
+    
+    if (details) {
+      document.getElementById('errorDetails').textContent = JSON.stringify(details, null, 2);
+      document.getElementById('btnShowDetails').style.display = 'inline-block';
+    } else {
+      document.getElementById('btnShowDetails').style.display = 'none';
+    }
+    
+    // Reset details container
+    var detailsContainer = $('#detailsContainer');
+    detailsContainer.hide();
+    document.getElementById('btnShowDetails').textContent = 'Toon details';
+    
+    // Toon de toast
+    $('#errorToast').toast('show');
+  }
+  
+  /**
+   * Toggle error details panel
+   */
+  function toggleErrorDetails() {
+    var detailsContainer = $('#detailsContainer');
+    var btnShowDetails = document.getElementById('btnShowDetails');
+    
+    if (detailsContainer.css('display') === 'none') {
+      detailsContainer.show();
+      btnShowDetails.textContent = 'Verberg details';
+    } else {
+      detailsContainer.hide();
+      btnShowDetails.textContent = 'Toon details';
+    }
+  }
+  
+  /**
+   * Toggle cache statistieken panel
+   */
+  function toggleCacheStatsPanel() {
+    var panel = document.getElementById('cacheStatsPanel');
+    if (panel.style.display === 'block') {
+      panel.style.display = 'none';
+    } else {
+      panel.style.display = 'block';
+      fetchCacheStats();
+    }
+  }
+  
+  /**
+   * Haal cache statistieken op en toon ze
+   */
+  async function fetchCacheStats() {
+    try {
+      const stats = await Api.getCacheStats();
+      
+      if (!stats.enabled) {
+        document.getElementById('cacheStatsContent').innerHTML = 
+          `<div class="alert alert-warning p-2 mb-0">Cache statistieken zijn uitgeschakeld</div>`;
+        return;
+      }
+      
+      const statsHtml = `
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <tr><td>Hits:</td><td>${stats.hits}</td></tr>
+            <tr><td>Misses:</td><td>${stats.misses}</td></tr>
+            <tr><td>Errors:</td><td>${stats.errors}</td></tr>
+            <tr><td>Hit Ratio:</td><td>${stats.hitRatio}</td></tr>
+            <tr><td>Totaal:</td><td>${stats.total}</td></tr>
+            <tr><td>Sinds:</td><td>${new Date(stats.sinceReset).toLocaleTimeString()}</td></tr>
+          </table>
+        </div>
+      `;
+      document.getElementById('cacheStatsContent').innerHTML = statsHtml;
+    } catch (error) {
+      console.error("Fout bij ophalen cache-statistieken:", error);
+      document.getElementById('cacheStatsContent').innerHTML = 
+        `<div class="alert alert-danger p-2 mb-0">Fout bij ophalen: ${error.message}</div>`;
+    }
+  }
+  
+  /**
+   * Reset cache statistieken
+   */
+  async function resetCacheStats() {
+    try {
+      await Api.resetCacheStats();
+      document.getElementById('cacheStatsContent').innerHTML = 
+        `<div class="alert alert-success p-2 mb-0">Statistieken gereset!</div>`;
+    } catch (error) {
+      console.error("Fout bij resetten cache-statistieken:", error);
+      document.getElementById('cacheStatsContent').innerHTML = 
+        `<div class="alert alert-danger p-2 mb-0">Fout bij resetten: ${error.message}</div>`;
+    }
+  }
+  
+  /**
+   * Update treinteller
+   * @param {number} count - Aantal treinen
+   */
+  function updateTrainCount(count) {
+    document.getElementById('trainCount').textContent = `Aantal treinen: ${count}`;
+  }
+  
+  /**
+   * Update showAll knop zichtbaarheid
+   * @param {boolean} show - Tonen of verbergen
+   */
+  function toggleShowAllButton(show) {
+    document.getElementById('btnShowAll').style.display = show ? 'inline-block' : 'none';
+  }
+  
+  /**
+   * Haal filters op uit de UI
+   * @returns {Object} Object met filters
+   */
+  function getFilters() {
+    return {
+      number: document.getElementById('filterNumber').value.trim().toLowerCase(),
+      location: document.getElementById('filterLocation').value.trim().toLowerCase()
+    };
+  }
+  
+  // Public API
+  return {
+    init: init,
+    updateApiStatus: updateApiStatus,
+    showErrorMessage: showErrorMessage,
+    toggleErrorDetails: toggleErrorDetails,
+    toggleCacheStatsPanel: toggleCacheStatsPanel,
+    fetchCacheStats: fetchCacheStats,
+    resetCacheStats: resetCacheStats,
+    updateTrainCount: updateTrainCount,
+    toggleShowAllButton: toggleShowAllButton,
+    getFilters: getFilters
+  };
+})();
+</script>
