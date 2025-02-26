@@ -1,0 +1,89 @@
+<script>
+/**
+ * Models module - Bevat datamodellen en transformaties voor de applicatie
+ * @namespace Models
+ */
+var Models = (function() {
+  /**
+   * Model voor treindata
+   * @typedef {Object} TrainModel
+   * @property {string|number} ritId - Unieke identificatie voor de rit
+   * @property {number} treinNummer - Nummer van de trein
+   * @property {string} type - Type trein (bijv. IC, SPR, etc.)
+   * @property {number} snelheid - Snelheid in km/u
+   * @property {number} lat - Latitude coördinaat
+   * @property {number} lng - Longitude coördinaat
+   */
+  
+  /**
+   * Model voor journey-details
+   * @typedef {Object} JourneyModel
+   * @property {string} nextStopDestination - Volgende halte van de trein
+   * @property {number} delayInSeconds - Vertraging in seconden
+   * @property {Date|string} lastUpdated - Laatste update tijdstip
+   * @property {number} [plannedDurationInMinutes] - Geplande reisduur in minuten
+   * @property {boolean} [isLastStop] - Geeft aan of dit de eindbestemming is
+   */
+
+  /**
+   * Valideer en standaardiseer treindata
+   * @param {Object} rawData - Ruwe data van de API
+   * @returns {TrainModel} - Gevalideerde en gestandaardiseerde treindata
+   */
+  function validateTrainData(rawData) {
+    // Zorg ervoor dat alle vereiste velden aanwezig zijn
+    if (!rawData.ritId || !rawData.treinNummer || !rawData.lat || !rawData.lng) {
+      console.warn('Ongeldige treindata:', rawData);
+    }
+    
+    // Converteer snelheid naar getal als het een string is
+    if (typeof rawData.snelheid === 'string') {
+      rawData.snelheid = parseFloat(rawData.snelheid) || 0;
+    }
+    
+    return rawData;
+  }
+  
+  /**
+   * Valideer en standaardiseer journey-data
+   * @param {Object} rawData - Ruwe journey data van de API
+   * @returns {JourneyModel} - Gevalideerde journey data
+   */
+  function validateJourneyData(rawData) {
+    // Standaard waarden voor ontbrekende velden
+    return {
+      nextStopDestination: rawData.nextStopDestination || 'Onbekend',
+      delayInSeconds: typeof rawData.delayInSeconds === 'number' ? rawData.delayInSeconds : 0,
+      lastUpdated: rawData.lastUpdated || new Date().toISOString(),
+      plannedDurationInMinutes: rawData.plannedDurationInMinutes,
+      isLastStop: !!rawData.isLastStop
+    };
+  }
+  
+  /**
+   * Creëer een object met cache-informatie
+   * @param {boolean} isCached - Is de data uit cache geladen
+   * @param {Date|string} lastUpdated - Laatste update tijdstip
+   * @returns {Object} - Cache informatie
+   */
+  function createCacheInfo(isCached, lastUpdated) {
+    const updatedTime = new Date(lastUpdated);
+    const now = new Date();
+    const ageInSec = Math.floor((now - updatedTime) / 1000);
+    
+    return {
+      isCached: isCached,
+      age: ageInSec,
+      source: isCached ? 'cached' : 'fresh',
+      label: isCached ? `Cache (${ageInSec}s)` : `Live (${ageInSec}s)`
+    };
+  }
+  
+  // Public API
+  return {
+    validateTrainData: validateTrainData,
+    validateJourneyData: validateJourneyData,
+    createCacheInfo: createCacheInfo
+  };
+})();
+</script>
