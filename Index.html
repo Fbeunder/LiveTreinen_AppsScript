@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <!-- Bootstrap CSS voor een responsive layout -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Leaflet CSS (integrity-attribuut verwijderd) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #map { 
+      height: calc(100% - 100px);  /* ruimte voor de controls bovenaan */
+      width: 100%;
+    }
+    .controls {
+      padding: 0.5rem;
+      background: #f8f9fa;
+    }
+    @media (min-width: 576px) {
+      .controls { 
+        display: flex; 
+        align-items: center; 
+        flex-wrap: wrap;
+      }
+      .controls .form-group { margin-right: 1rem; }
+    }
+    /* Marker highlight in volgmodus */
+    .follow-marker { filter: hue-rotate(120deg) saturate(150%); }
+    /* Knop om alle treinen te tonen */
+    #btnShowAll {
+      margin-left: auto;
+      display: none;
+    }
+    /* Status-info styling */
+    .status-info {
+      margin-left: 1rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Controlepaneel met zoekvelden en statusinformatie -->
+  <div class="controls">
+    <div class="form-group mb-2">
+      <label for="filterNumber" class="sr-only">Treinnummer</label>
+      <input type="text" id="filterNumber" class="form-control" placeholder="Zoek op treinnummer">
+    </div>
+    <div class="form-group mb-2">
+      <label for="filterLocation" class="sr-only">Locatie</label>
+      <input type="text" id="filterLocation" class="form-control" placeholder="Zoek op locatie">
+    </div>
+    <div class="status-info mb-2">
+      <span id="trainCount">Aantal treinen: 0</span> | 
+      <span id="apiStatus">API status: onbekend</span>
+    </div>
+    <button id="btnShowAll" class="btn btn-secondary btn-sm">Toon alle treinen</button>
+  </div>
+
+  <!-- Container voor de kaart -->
+  <div id="map"></div>
+
+  <!-- Leaflet JS (integrity-attribuut verwijderd) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Initialiseer de kaart met een centraal Nederland perspectief
+    var map = L.map('map').setView([52.1, 5.2], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 18
+    }).addTo(map);
+
+    // Globale variabelen
+    var markers = {};          // Alle markers, gesorteerd op ritId
+    var trainData = [];        // Laatste dataset van treinen
+    var followedTrainId = null; // RitId van de trein die gevolgd wordt
