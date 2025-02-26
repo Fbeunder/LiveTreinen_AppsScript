@@ -1,0 +1,246 @@
+<script>
+/**
+ * Map module - Verantwoordelijk voor alle kaart functionaliteit
+ * @namespace Map
+ */
+var Map = (function() {
+  // Private variabelen
+  var _map = null;
+  var _markers = {};
+  var _followedTrainId = null;
+  
+  /**
+   * Initialiseer de Leaflet kaart
+   * @returns {Object} Leaflet kaart instance
+   */
+  function init() {
+    if (_map) return _map;
+    
+    _map = L.map('map').setView([52.1, 5.2], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 18
+    }).addTo(_map);
+    
+    return _map;
+  }
+  
+  /**
+   * Maak een icon op basis van delay
+   * @private
+   * @param {number} delay - Vertraging in seconden
+   * @returns {Object} Leaflet divIcon
+   */
+  function _getDelayIcon(delay) {
+    let color;
+    if (delay < 60) {
+      color = '#007bff'; // blauw
+    } else if (delay < 180) {
+      color = '#ff9800'; // oranje
+    } else {
+      color = '#ff0000'; // rood
+    }
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }
+  
+  /**
+   * Maak of update een marker voor een trein
+   * @param {Object} train - Trein data object
+   * @returns {Object} Leaflet marker instance
+   */
+  function renderTrainMarker(train) {
+    var id = train.ritId;
+    var marker = _markers[id];
+    
+    if (!marker) {
+      marker = L.marker([train.lat, train.lng], { title: 'Trein ' + train.treinNummer })
+        .addTo(_map)
+        .bindPopup(`🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`);
+      
+      marker.on('click', function() {
+        App.followTrain(id);
+      });
+      
+      _markers[id] = marker;
+    } else {
+      marker.setLatLng([train.lat, train.lng]);
+      marker.getPopup().setContent(`🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`);
+    }
+    
+    return marker;
+  }
+  
+  /**
+   * Update marker op basis van journey data
+   * @param {Object} train - Trein data object
+   * @param {Object} journey - Journey data object
+   * @param {Object} cacheInfo - Cache informatie object
+   * @returns {boolean} Succes
+   */
+  function updateMarkerWithJourneyData(train, journey, cacheInfo) {
+    if (!_markers[train.ritId]) return false;
+    
+    // Bepaal nieuw icon op basis van delay
+    let newIcon = _getDelayIcon(journey.delayInSeconds);
+    _markers[train.ritId].setIcon(newIcon);
+    
+    // Update popup: voeg journey-info toe
+    let baseContent = `🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`;
+    let journeyContent = `<br>Next stop: ${journey.nextStopDestination || 'Onbekend'} | Delay: ${journey.delayInSeconds} sec`;
+    
+    // Voeg cache-indicator toe
+    let sourceLabel = '';
+    if (journey.lastUpdated) {
+      if (cacheInfo.isCached) {
+        sourceLabel = `<span class="data-source source-cached">Cache (${cacheInfo.age}s)</span>`;
+      } else {
+        sourceLabel = `<span class="data-source source-fresh">Live (${cacheInfo.age}s)</span>`;
+      }
+      
+      // Add refresh button for cached data
+      if (cacheInfo.isCached) {
+        sourceLabel += `<span class="refresh-button" onclick="App.refreshTrainData(${train.treinNummer}, event)">
+          <i class="fas fa-sync-alt"></i></span>`;
+      }
+    }
+    
+    // Voeg extra informatie toe als beschikbaar
+    if (journey.plannedDurationInMinutes) {
+      journeyContent += `<br>Geplande reisduur: ${journey.plannedDurationInMinutes} min`;
+    }
+    if (journey.isLastStop) {
+      journeyContent += '<br><i>Dit is de eindbestemming</i>';
+    }
+    
+    _markers[train.ritId].getPopup().setContent(baseContent + journeyContent + sourceLabel);
+    return true;
+  }
+  
+  /**
+   * Schakel volgmodus in voor een specifieke trein
+   * @param {string|number} trainId - Rit ID van de te volgen trein
+   * @returns {void}
+   */
+  function startFollowMode(trainId) {
+    _followedTrainId = trainId;
+    
+    // Update markers
+    Object.keys(_markers).forEach(id => {
+      if (id == trainId) {
+        var el = _markers[id].getElement();
+        if (el) el.classList.add('follow-marker');
+        _markers[id].openPopup();
+        _map.setView(_markers[id].getLatLng(), 12);
+      } else {
+        if (_map.hasLayer(_markers[id])) {
+          _map.removeLayer(_markers[id]);
+        }
+      }
+    });
+  }
+  
+  /**
+   * Schakel volgmodus uit en toon alle markers
+   * @returns {void}
+   */
+  function stopFollowMode() {
+    _followedTrainId = null;
+    
+    // Update markers
+    Object.keys(_markers).forEach(id => {
+      if (!_map.hasLayer(_markers[id])) {
+        _markers[id].addTo(_map);
+      }
+      var el = _markers[id].getElement();
+      if (el) el.classList.remove('follow-marker');
+    });
+  }
+  
+  /**
+   * Pas filters toe op markers
+   * @param {string} numFilter - Filter op treinnummer
+   * @param {string} locFilter - Filter op locatie (nog niet geïmplementeerd)
+   * @returns {void}
+   */
+  function applyFilters(numFilter, locFilter) {
+    // Als er een follow mode actief is, doe niks
+    if (_followedTrainId) return;
+    
+    numFilter = numFilter.trim().toLowerCase();
+    locFilter = locFilter.trim().toLowerCase();
+    
+    Object.keys(_markers).forEach(id => {
+      var trainNumber = _markers[id].getPopup().getContent().match(/Trein (\d+)/)[1];
+      var idStr = String(trainNumber).toLowerCase();
+      var matches = true;
+      
+      if (numFilter && idStr.indexOf(numFilter) === -1) {
+        matches = false;
+      }
+      
+      // TODO: Locatie filter implementeren
+      
+      if (!matches) {
+        if (_map.hasLayer(_markers[id])) {
+          _map.removeLayer(_markers[id]);
+        }
+      } else {
+        if (!_map.hasLayer(_markers[id])) {
+          _markers[id].addTo(_map);
+        }
+      }
+    });
+  }
+  
+  /**
+   * Verwijder markers die niet meer in de data set staan
+   * @param {Array} currentTrains - Huidige lijst met treinen
+   * @returns {void}
+   */
+  function cleanupMarkers(currentTrains) {
+    if (_followedTrainId) return;
+    
+    Object.keys(_markers).forEach(id => {
+      var stillThere = currentTrains.find(t => String(t.ritId) === id);
+      if (!stillThere && _map.hasLayer(_markers[id])) {
+        _map.removeLayer(_markers[id]);
+        delete _markers[id];
+      }
+    });
+  }
+  
+  /**
+   * Haal alle markers op
+   * @returns {Object} Map met markers
+   */
+  function getMarkers() {
+    return _markers;
+  }
+  
+  /**
+   * Haal volgmodus status op
+   * @returns {string|number|null} Rit ID van de gevolgde trein of null
+   */
+  function getFollowedTrainId() {
+    return _followedTrainId;
+  }
+  
+  // Public API
+  return {
+    init: init,
+    renderTrainMarker: renderTrainMarker,
+    updateMarkerWithJourneyData: updateMarkerWithJourneyData,
+    startFollowMode: startFollowMode,
+    stopFollowMode: stopFollowMode,
+    applyFilters: applyFilters,
+    cleanupMarkers: cleanupMarkers,
+    getMarkers: getMarkers,
+    getFollowedTrainId: getFollowedTrainId
+  };
+})();
+</script>
