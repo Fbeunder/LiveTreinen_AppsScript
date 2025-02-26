@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <!-- Bootstrap CSS voor een responsive layout -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Leaflet CSS (integrity-attribuut verwijderd) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Font Awesome voor iconen -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <!-- Applicatie stylesheets -->
+  <?!= include('frontend/css/main'); ?>
+
+  <title>Live Treinen Tracker</title>
+</head>
+<body>
+  <!-- Controlepaneel met zoekvelden en statusinformatie -->
+  <div class="controls">
+    <div class="form-group mb-2">
+      <label for="filterNumber" class="sr-only">Treinnummer</label>
+      <input type="text" id="filterNumber" class="form-control" placeholder="Zoek op treinnummer">
+    </div>
+    <div class="form-group mb-2">
+      <label for="filterLocation" class="sr-only">Locatie</label>
+      <input type="text" id="filterLocation" class="form-control" placeholder="Zoek op locatie">
+    </div>
+    <div class="status-info mb-2">
+      <span id="trainCount">Aantal treinen: 0</span> | 
+      <span class="api-status-indicator" id="apiStatusIndicator"></span>
+      <span id="apiStatus">API status: onbekend</span>
+      <span class="cache-stats-toggle" id="cacheStatsToggle">Cache Stats</span>
+    </div>
+    <button id="btnShowAll" class="btn btn-secondary btn-sm">Toon alle treinen</button>
+  </div>
+
+  <!-- Container voor de kaart -->
+  <div id="map"></div>
+  
+  <!-- Cache statistics panel -->
+  <div id="cacheStatsPanel">
+    <h6 class="mb-2">Cache Statistieken <span class="float-right refresh-button" id="refreshStats"><i class="fas fa-sync-alt"></i></span></h6>
+    <div id="cacheStatsContent">
+      <div>Laden...</div>
+    </div>
+    <button id="resetStats" class="btn btn-sm btn-outline-secondary mt-2">Reset Stats</button>
+    <button id="closeCacheStats" class="btn btn-sm btn-outline-secondary mt-2 ml-1">Sluiten</button>
+  </div>
+  
+  <!-- Error Toast voor foutmeldingen -->
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="10000">
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-circle mr-2"></i>
+      <strong class="mr-auto" id="errorTitle">Foutmelding</strong>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="toast-body">
+      <div id="errorMessage">Er is een fout opgetreden.</div>
+      <button id="btnShowDetails" class="btn btn-sm btn-outline-secondary mt-2">Toon details</button>
+      <div id="detailsContainer">
+        <div id="errorDetails"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS (integrity-attribuut verwijderd) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Bootstrap JS voor tooltips en toasts -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <!-- Application Scripts -->
+  <?!= include('frontend/js/models'); ?>
+  <?!= include('frontend/js/api'); ?>
+  <?!= include('frontend/js/map'); ?>
+  <?!= include('frontend/js/ui'); ?>
+  <?!= include('frontend/js/app'); ?>
+</body>
+</html>
