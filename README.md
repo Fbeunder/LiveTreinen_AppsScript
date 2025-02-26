@@ -10,16 +10,28 @@ Een Google Apps Script project dat realtime treinposities en -informatie van de 
 - Volgmodus voor specifieke treinen
 - Weergave van vertragingen met kleurcodering
 - Responsief design voor desktop en mobiel
+- Geavanceerde caching voor optimale performance
+- Real-time cache statistieken en verversing van data
 
 ## Architectuur
 
-Het project is modulair opgezet met de volgende modules:
+Het project is volledig modulair opgezet met de volgende onderdelen:
 
+### Backend (Google Apps Script)
 - **Main.js** - Hoofdmodule met doGet-functie en algemene logica
 - **ApiService.js** - Module voor het afhandelen van API-communicatie met NS API
-- **CacheService.js** - Module voor het afhandelen van caching
+- **CacheService.js** - Module voor het afhandelen van geavanceerde caching
 - **ErrorHandler.js** - Module voor foutafhandeling en -logging
 - **Config.js** - Module voor configuratie-instellingen
+
+### Frontend (Modulaire JavaScript)
+- **index.html** - Hoofdbestand met basisstructuur en imports
+- **css/main.html** - Centrale stylesheet
+- **js/models.html** - Data models en validaties
+- **js/api.html** - API communicatie functies
+- **js/map.html** - Kaart en marker beheer
+- **js/ui.html** - UI componenten en interacties
+- **js/app.html** - Main application controller
 
 ## Benodigdheden
 
@@ -44,13 +56,28 @@ Deze applicatie maakt gebruik van:
 - NS Virtual Train API voor treinposities
 - NS Journey API voor reisinformatie
 
-## Ontwikkelaars Info
+## Technische Specificaties
 
-De applicatie is modulair opgezet en maakt gebruik van:
+- **Programmeertaal**: JavaScript (Google Apps Script)
+- **Versie**: 1.0.0
+- **Script ID**: AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP
+- **Frontend Libraries**:
+  - Leaflet.js v1.9.4 voor kaartintegratie
+  - Bootstrap v4.5.2 voor responsive UI
+  - jQuery v3.5.1 voor DOM manipulatie
+  - Font Awesome v5.15.4 voor iconen
+- **Backend Features**:
+  - Gedifferentieerde caching per data type
+  - Robuuste error handling met retry mechanisme
+  - Auto-scaling cache TTLs
+
+## Ontwikkelaars Informatie
+
+De applicatie is volledig modulair opgezet en maakt gebruik van:
 - Google Apps Script services (CacheService, PropertiesService)
-- Leaflet.js voor kaartintegratie
-- Bootstrap voor responsive UI
-- Retries en cache voor betrouwbare operatie
+- Namespaces voor het vermijden van conflicten
+- JSDoc documentatie voor alle modules en functies
+- Gestandaardiseerde foutafhandeling en logging
 
 ## Licentie
 
