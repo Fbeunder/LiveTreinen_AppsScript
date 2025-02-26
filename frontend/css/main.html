@@ -1,0 +1,124 @@
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #map { 
+    height: calc(100% - 100px);  /* ruimte voor de controls bovenaan */
+    width: 100%;
+  }
+  .controls {
+    padding: 0.5rem;
+    background: #f8f9fa;
+  }
+  @media (min-width: 576px) {
+    .controls { 
+      display: flex; 
+      align-items: center; 
+      flex-wrap: wrap;
+    }
+    .controls .form-group { margin-right: 1rem; }
+  }
+  /* Marker highlight in volgmodus */
+  .follow-marker { filter: hue-rotate(120deg) saturate(150%); }
+  /* Knop om alle treinen te tonen */
+  #btnShowAll {
+    margin-left: auto;
+    display: none;
+  }
+  /* Status-info styling */
+  .status-info {
+    margin-left: 1rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+  }
+  /* Status indicator styling */
+  .api-status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .status-ok {
+    background-color: #28a745; /* groen */
+  }
+  .status-warning {
+    background-color: #ffc107; /* geel */
+  }
+  .status-error {
+    background-color: #dc3545; /* rood */
+  }
+  /* Error toast styling */
+  #errorToast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: none;
+    min-width: 300px;
+  }
+  #detailsContainer {
+    display: none;
+    border-top: 1px solid #ddd;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-size: 0.9em;
+  }
+  /* Data-bron indicator */
+  .data-source {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    display: inline-block;
+  }
+  .source-fresh {
+    background-color: #E3F2FD;
+    color: #0D47A1;
+  }
+  .source-cached {
+    background-color: #E8F5E9;
+    color: #1B5E20;
+  }
+  /* Cache stats panel */
+  #cacheStatsPanel {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+    max-width: 280px;
+  }
+  .cache-stats-toggle {
+    cursor: pointer;
+    text-decoration: underline;
+    color: #007bff;
+    margin-left: 5px;
+    font-size: 0.85em;
+    font-weight: normal;
+  }
+  /* Refresh indicatie */
+  .refresh-button {
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  .refresh-button:hover {
+    color: #007bff;
+  }
+  .data-refresh {
+    display: none;
+    margin-left: 5px;
+    font-size: 0.75rem;
+    color: #666;
+  }
+</style>
