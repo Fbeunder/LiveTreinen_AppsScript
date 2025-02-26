@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Live Treinposities</title>
+  
+  <!-- Bootstrap en Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  
+  <!-- Leaflet (kaart) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  
+  <!-- jQuery, Popper.js, Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js"></script>
+  
+  <!-- Import CSS -->
+  <?!= include('frontend/css/main'); ?>
+  
+  <!-- Import JavaScript modules -->
+  <?!= include('frontend/js/models'); ?>
+  <?!= include('frontend/js/api'); ?>
+  <?!= include('frontend/js/map'); ?>
+  <?!= include('frontend/js/ui'); ?>
+  <?!= include('frontend/js/app'); ?>
+</head>
+<body>
+  <!-- Bovenste balk met controls -->
+  <div class="controls">
+    <div class="form-group">
+      <label for="filterNumber">Filter treinnummer:</label>
+      <input type="text" id="filterNumber" class="form-control form-control-sm" placeholder="bijv. 3572">
+    </div>
+    
+    <div class="form-group">
+      <label for="filterLocation">Filter locatie:</label>
+      <input type="text" id="filterLocation" class="form-control form-control-sm" placeholder="bijv. Amsterdam">
+    </div>
+    
+    <div class="status-info">
+      <span class="api-status-indicator" id="apiStatusIndicator"></span>
+      <span id="apiStatus">API status: Verbinden...</span>
+      <span class="cache-stats-toggle" id="cacheStatsToggle">Cache stats</span>
+    </div>
+    
+    <button id="btnShowAll" class="btn btn-sm btn-outline-primary">
+      <i class="fas fa-globe"></i> Toon alle treinen
+    </button>
+  </div>
+  
+  <div id="trainCount" class="p-2 text-muted small">Aantal treinen: -</div>
+  
+  <!-- De kaart -->
+  <div id="map"></div>
+  
+  <!-- Error toast -->
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-autohide="false">
+    <div class="toast-header bg-danger text-white">
+      <strong class="mr-auto" id="errorTitle">Fout</strong>
+      <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="toast-body">
+      <div id="errorMessage">Er is een fout opgetreden.</div>
+      <button id="btnShowDetails" class="btn btn-sm btn-link p-0 mt-1">Toon details</button>
+      <div id="detailsContainer">
+        <pre id="errorDetails" class="bg-light p-2 mt-2" style="font-size: 0.8rem;"></pre>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Cache stats panel -->
+  <div id="cacheStatsPanel">
+    <div class="d-flex justify-content-between mb-2">
+      <h6 class="mb-0">Cache Statistieken</h6>
+      <div>
+        <button id="refreshStats" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Vernieuwen">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button id="resetStats" class="btn btn-sm btn-outline-danger py-0 px-1" title="Reset statistieken">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button id="closeCacheStats" class="btn btn-sm btn-outline-dark py-0 px-1" title="Sluiten">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div id="cacheStatsContent" class="small">
+      <div class="text-center py-2">
+        <div class="spinner-border spinner-border-sm" role="status">
+          <span class="sr-only">Laden...</span>
+        </div>
+        <span class="ml-2">Laden...</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
