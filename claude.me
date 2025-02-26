@@ -7,7 +7,8 @@ Dit is een Google Apps Script project dat realtime treinposities en -informatie 
 Het project bestaat uit de volgende componenten:
 - Backend (Google Apps Script) modulair opgezet voor het ophalen van NS API-gegevens
   - Modules: Main, ApiService, CacheService, ErrorHandler, Config
-- Frontend (HTML/JavaScript) voor het weergeven en interactie met treingegevens
+- Frontend (HTML/JavaScript) modulair opgezet voor het weergeven en interactie met treingegevens
+  - Modules: index, models, api, map, ui, app
 - Integratie met Leaflet.js voor kaartvisualisatie
 
 ## 3. Modules
@@ -98,8 +99,15 @@ Het project bestaat uit de volgende componenten:
   - Foutdefinities
 
 ### Frontend (Index.html)
-- **Status**: Verbeterd met cache-gerelateerde UI-elementen
-- **Bestandsnaam**: Index.html
+- **Status**: Geïmplementeerd met modulair ontwerp en opgesplitst in componenten
+- **Bestandsnamen**:
+  - `index.html` - Hoofdbestand met basisstructuur en imports
+  - `frontend/css/main.html` - Hoofdstylesheet
+  - `frontend/js/models.html` - Data models en transformaties
+  - `frontend/js/api.html` - API communicatie en data fetching
+  - `frontend/js/map.html` - Kaartgerelateerde functionaliteit 
+  - `frontend/js/ui.html` - UI componenten en interacties
+  - `frontend/js/app.html` - Applicatie entry point en controller
 - **Functionaliteit**: Visualiseert treinposities op een kaart en biedt gebruikersinteractie
 - **Belangrijkste componenten**:
   - Kaartintegratie met Leaflet.js
@@ -126,6 +134,7 @@ Het project bestaat uit de volgende componenten:
 - ✅ Frontend UI is bijgewerkt met verbeterde foutmeldingen en status-indicatoren
 - ✅ Geavanceerde cache-strategieën met gedifferentieerde TTL's geïmplementeerd
 - ✅ Cache-statistieken en monitoring toegevoegd
+- ✅ Frontend code is opgesplitst in modulaire componenten
 
 ## 5. Volgende stappen
 
@@ -134,7 +143,7 @@ Het project bestaat uit de volgende componenten:
 2. ✅ Opsplitsen van Code.js in meerdere modules (Afgerond in issue #5)
 3. ✅ Documenteren van de nieuwe modulaire codestructuur (Afgerond in issue #4)
 4. ✅ Uitbreiden van de cache-functionaliteit voor betere performance (Afgerond in issue #2)
-5. Opsplitsen van Index.html in modulaire frontend-componenten (Issue #6)
+5. ✅ Opsplitsen van Index.html in modulaire frontend-componenten (Afgerond in issue #6)
 6. Script ID: AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP
 
 ### Nice-to-haves:
@@ -146,4 +155,4 @@ Het project bestaat uit de volgende componenten:
 6. Verbeteren van de UI met responsieve elementen
 7. Toevoegen van een dashboard met statistieken
 
-Alleen issue #6 is nog een must-have voor de basiswerking van de applicatie. Zodra deze is afgerond, zullen alle must-haves voor de basiswerking van de applicatie voltooid zijn. De nice-to-have functies zoals issue #3 en de overige punten zijn verbeteringen en uitbreidingen die de functionaliteit en gebruikerservaring kunnen verbeteren, maar niet noodzakelijk zijn voor de kernfunctionaliteit.
+Alle must-have functies voor de basiswerking van de applicatie zijn nu voltooid. De nice-to-have functies zoals issue #3 en de overige punten zijn verbeteringen en uitbreidingen die de functionaliteit en gebruikerservaring kunnen verbeteren, maar niet noodzakelijk zijn voor de kernfunctionaliteit.
