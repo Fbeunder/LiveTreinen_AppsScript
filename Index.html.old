@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <!-- Bootstrap CSS voor een responsive layout -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Leaflet CSS (integrity-attribuut verwijderd) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Font Awesome voor iconen -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #map { 
+      height: calc(100% - 100px);  /* ruimte voor de controls bovenaan */
+      width: 100%;
+    }
+    .controls {
+      padding: 0.5rem;
+      background: #f8f9fa;
+    }
+    @media (min-width: 576px) {
+      .controls { 
+        display: flex; 
+        align-items: center; 
+        flex-wrap: wrap;
+      }
+      .controls .form-group { margin-right: 1rem; }
+    }
+    /* Marker highlight in volgmodus */
+    .follow-marker { filter: hue-rotate(120deg) saturate(150%); }
+    /* Knop om alle treinen te tonen */
+    #btnShowAll {
+      margin-left: auto;
+      display: none;
+    }
+    /* Status-info styling */
+    .status-info {
+      margin-left: 1rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+    }
+    /* Status indicator styling */
+    .api-status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-ok {
+      background-color: #28a745; /* groen */
+    }
+    .status-warning {
+      background-color: #ffc107; /* geel */
+    }
+    .status-error {
+      background-color: #dc3545; /* rood */
+    }
+    /* Error toast styling */
+    #errorToast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      display: none;
+      min-width: 300px;
+    }
+    #detailsContainer {
+      display: none;
+      border-top: 1px solid #ddd;
+      margin-top: 10px;
+      padding-top: 10px;
+      font-size: 0.9em;
+    }
+    /* Data-bron indicator */
+    .data-source {
+      margin-left: 0.5rem;
+      font-size: 0.8rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    .source-fresh {
+      background-color: #E3F2FD;
+      color: #0D47A1;
+    }
+    .source-cached {
+      background-color: #E8F5E9;
+      color: #1B5E20;
+    }
+    /* Cache stats panel */
+    #cacheStatsPanel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 1000;
+      display: none;
+      max-width: 280px;
+    }
+    .cache-stats-toggle {
+      cursor: pointer;
+      text-decoration: underline;
+      color: #007bff;
+      margin-left: 5px;
+      font-size: 0.85em;
+      font-weight: normal;
+    }
+    /* Refresh indicatie */
+    .refresh-button {
+      cursor: pointer;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    .refresh-button:hover {
+      color: #007bff;
+    }
+    .data-refresh {
+      display: none;
+      margin-left: 5px;
+      font-size: 0.75rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- Controlepaneel met zoekvelden en statusinformatie -->
+  <div class="controls">
+    <div class="form-group mb-2">
+      <label for="filterNumber" class="sr-only">Treinnummer</label>
+      <input type="text" id="filterNumber" class="form-control" placeholder="Zoek op treinnummer">
+    </div>
+    <div class="form-group mb-2">
+      <label for="filterLocation" class="sr-only">Locatie</label>
+      <input type="text" id="filterLocation" class="form-control" placeholder="Zoek op locatie">
+    </div>
+    <div class="status-info mb-2">
+      <span id="trainCount">Aantal treinen: 0</span> | 
+      <span class="api-status-indicator" id="apiStatusIndicator"></span>
+      <span id="apiStatus">API status: onbekend</span>
+      <span class="cache-stats-toggle" id="cacheStatsToggle">Cache Stats</span>
+    </div>
+    <button id="btnShowAll" class="btn btn-secondary btn-sm">Toon alle treinen</button>
+  </div>
+
+  <!-- Container voor de kaart -->
+  <div id="map"></div>
+  
+  <!-- Cache statistics panel -->
+  <div id="cacheStatsPanel">
+    <h6 class="mb-2">Cache Statistieken <span class="float-right refresh-button" id="refreshStats"><i class="fas fa-sync-alt"></i></span></h6>
+    <div id="cacheStatsContent">
+      <div>Laden...</div>
+    </div>
+    <button id="resetStats" class="btn btn-sm btn-outline-secondary mt-2">Reset Stats</button>
+    <button id="closeCacheStats" class="btn btn-sm btn-outline-secondary mt-2 ml-1">Sluiten</button>
+  </div>
+  
+  <!-- Error Toast voor foutmeldingen -->
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="10000">
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-circle mr-2"></i>
+      <strong class="mr-auto" id="errorTitle">Foutmelding</strong>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="toast-body">
+      <div id="errorMessage">Er is een fout opgetreden.</div>
+      <button id="btnShowDetails" class="btn btn-sm btn-outline-secondary mt-2">Toon details</button>
+      <div id="detailsContainer">
+        <div id="errorDetails"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS (integrity-attribuut verwijderd) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Bootstrap JS voor tooltips en toasts -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script>
+    // Initialiseer de kaart met een centraal Nederland perspectief
+    var map = L.map('map').setView([52.1, 5.2], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 18
+    }).addTo(map);
+
+    // Globale variabelen
+    var markers = {};          // Alle markers, gesorteerd op ritId
+    var trainData = [];        // Laatste dataset van treinen
+    var followedTrainId = null; // RitId van de trein die gevolgd wordt
+    var lastApiStatus = null;   // Laatste API status (ok, warning, error)
+    var cachedTrains = {};      // Bijhouden welke treinen uit cache komen
+
+    // Update-fetchinterval (normaal en bij volgmodus)
+    var normalFetchInterval = 5000; // 5 seconden
+    var fastFetchInterval = 1000;   // 1 seconde
+    var fetchTimer = null;
+    startFetchTimer(normalFetchInterval);
+
+    // Cache stats toggle
+    document.getElementById('cacheStatsToggle').addEventListener('click', function() {
+      if (document.getElementById('cacheStatsPanel').style.display === 'block') {
+        document.getElementById('cacheStatsPanel').style.display = 'none';
+      } else {
+        document.getElementById('cacheStatsPanel').style.display = 'block';
+        fetchCacheStats();
+      }
+    });
+    
+    // Refresh cache stats
+    document.getElementById('refreshStats').addEventListener('click', fetchCacheStats);
+    
+    // Reset cache stats
+    document.getElementById('resetStats').addEventListener('click', function() {
+      resetCacheStats();
+      setTimeout(fetchCacheStats, 500); // Refresh na korte vertraging
+    });
+    
+    // Close cache stats panel
+    document.getElementById('closeCacheStats').addEventListener('click', function() {
+      document.getElementById('cacheStatsPanel').style.display = 'none';
+    });
+
+    // Error toast element
+    var errorToast = $('#errorToast');
+    var detailsContainer = $('#detailsContainer');
+    
+    // Error details toggle
+    document.getElementById('btnShowDetails').addEventListener('click', function() {
+      if (detailsContainer.css('display') === 'none') {
+        detailsContainer.show();
+        this.textContent = 'Verberg details';
+      } else {
+        detailsContainer.hide();
+        this.textContent = 'Toon details';
+      }
+    });
+
+    function startFetchTimer(interval) {
+      if (fetchTimer) clearInterval(fetchTimer);
+      fetchTimer = setInterval(fetchTrainData, interval);
+    }
+
+    // Set API status indicator
+    function updateApiStatus(status, message, details) {
+      lastApiStatus = status;
+      var indicator = document.getElementById('apiStatusIndicator');
+      var statusText = document.getElementById('apiStatus');
+      
+      // Verwijder alle bestaande classes
+      indicator.classList.remove('status-ok', 'status-warning', 'status-error');
+      
+      // Update indicator en text
+      if (status === 'ok') {
+        indicator.classList.add('status-ok');
+        statusText.textContent = 'API status: OK';
+      } else if (status === 'warning') {
+        indicator.classList.add('status-warning');
+        statusText.textContent = 'API status: Waarschuwing';
+        showErrorMessage('Waarschuwing', message, details);
+      } else if (status === 'error') {
+        indicator.classList.add('status-error');
+        statusText.textContent = 'API status: Fout';
+        showErrorMessage('Fout', message, details);
+      } else {
+        indicator.classList.add('status-warning');
+        statusText.textContent = 'API status: Onbekend';
+      }
+    }
+    
+    // Toon error toast met details
+    function showErrorMessage(title, message, details) {
+      document.getElementById('errorTitle').textContent = title;
+      document.getElementById('errorMessage').textContent = message || 'Er is een fout opgetreden.';
+      
+      if (details) {
+        document.getElementById('errorDetails').textContent = JSON.stringify(details, null, 2);
+        document.getElementById('btnShowDetails').style.display = 'inline-block';
+      } else {
+        document.getElementById('btnShowDetails').style.display = 'none';
+      }
+      
+      // Reset details container
+      detailsContainer.hide();
+      document.getElementById('btnShowDetails').textContent = 'Toon details';
+      
+      // Toon de toast
+      errorToast.toast('show');
+    }
+
+    // Functie voor het bepalen van een icon op basis van delay
+    function getDelayIcon(delay) {
+      let color;
+      if (delay < 60) {
+        color = '#007bff'; // blauw
+      } else if (delay < 180) {
+        color = '#ff9800'; // oranje
+      } else {
+        color = '#ff0000'; // rood
+      }
+      return L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+    }
+
+    // Maak of update een marker voor een trein (basisgegevens)
+    function renderTrainMarker(train) {
+      var id = train.ritId;
+      var marker = markers[id];
+      if (!marker) {
+        marker = L.marker([train.lat, train.lng], { title: 'Trein ' + train.treinNummer })
+          .addTo(map)
+          .bindPopup(`🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`);
+        marker.on('click', function() {
+          followTrain(id);
+        });
+        markers[id] = marker;
+      } else {
+        marker.setLatLng([train.lat, train.lng]);
+        // Basis popup, journey info wordt later toegevoegd
+        marker.getPopup().setContent(`🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`);
+      }
+      return marker;
+    }
+
+    // Asynchrone functie: haal journey-details op en update marker
+    async function fetchAndUpdateJourney(train) {
+      try {
+        // Haal het script ID dynamisch op uit de huidige URL
+        let scriptId = getScriptId();
+        
+        // Controleer of we al weten of de data voor deze trein in cache is
+        let isCached = false;
+        if (cachedTrains[train.treinNummer]) {
+          isCached = true;
+        } else {
+          // Check of deze trein in cache zit
+          let cacheCheckRes = await fetch(`${scriptId}?action=checkCache&train=${train.treinNummer}`);
+          if (cacheCheckRes.ok) {
+            let cacheStatus = await cacheCheckRes.json();
+            isCached = cacheStatus.hasFreshCache;
+            if (isCached) {
+              cachedTrains[train.treinNummer] = true;
+            }
+          }
+        }
+        
+        let journeyRes = await fetch(`${scriptId}?action=getJourney&train=${train.treinNummer}`);
+        if (!journeyRes.ok) throw new Error("Journey request failed: " + journeyRes.status);
+        let journeyData = await journeyRes.json();
+        
+        // Controleer of er een fout is
+        if (journeyData.error) {
+          console.warn(`Journey API fout voor trein ${train.treinNummer}:`, journeyData);
+          // Bepaal status op basis van foutcode
+          if (['AUTH_ERROR', 'API_ERROR', 'DATA_ERROR', 'NETWORK_ERROR'].includes(journeyData.error)) {
+            updateApiStatus('error', journeyData.message, journeyData);
+          } else if (['RATE_LIMIT', 'TIMEOUT'].includes(journeyData.error)) {
+            updateApiStatus('warning', journeyData.message, journeyData);
+          }
+          return;
+        }
+        
+        if (markers[train.ritId]) {
+          // Bepaal nieuw icon op basis van delay
+          let newIcon = getDelayIcon(journeyData.delayInSeconds);
+          markers[train.ritId].setIcon(newIcon);
+          
+          // Update popup: voeg journey-info toe
+          let baseContent = `🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`;
+          let journeyContent = `<br>Next stop: ${journeyData.nextStopDestination || 'Onbekend'} | Delay: ${journeyData.delayInSeconds} sec`;
+          
+          // Voeg cache-indicator toe
+          let sourceLabel = '';
+          if (journeyData.lastUpdated) {
+            const updatedTime = new Date(journeyData.lastUpdated);
+            const now = new Date();
+            const ageInSec = Math.floor((now - updatedTime) / 1000);
+            
+            if (isCached) {
+              sourceLabel = `<span class="data-source source-cached">Cache (${ageInSec}s)</span>`;
+            } else {
+              sourceLabel = `<span class="data-source source-fresh">Live (${ageInSec}s)</span>`;
+            }
+            
+            // Add refresh button for cached data
+            if (isCached) {
+              sourceLabel += `<span class="refresh-button" onclick="refreshTrainData(${train.treinNummer}, event)"><i class="fas fa-sync-alt"></i></span>`;
+            }
+          }
+          
+          // Voeg extra informatie toe als beschikbaar
+          if (journeyData.plannedDurationInMinutes) {
+            journeyContent += `<br>Geplande reisduur: ${journeyData.plannedDurationInMinutes} min`;
+          }
+          if (journeyData.isLastStop) {
+            journeyContent += '<br><i>Dit is de eindbestemming</i>';
+          }
+          
+          markers[train.ritId].getPopup().setContent(baseContent + journeyContent + sourceLabel);
+        }
+      } catch(error) {
+        console.error("Error fetching journey details for train", train.treinNummer, error);
+        updateApiStatus('error', `Fout bij ophalen details voor trein ${train.treinNummer}`, { 
+          errorMessage: error.message 
+        });
+      }
+    }
+
+    // Activeer volgmodus voor een specifieke trein (we tonen dan alleen deze trein)
+    function followTrain(trainId) {
+      followedTrainId = trainId;
+      startFetchTimer(fastFetchInterval);  // Zet updatefrequentie op 1 sec
+      Object.keys(markers).forEach(id => {
+        if (id == trainId) {
+          var el = markers[id].getElement();
+          if (el) el.classList.add('follow-marker');
+          markers[id].openPopup();
+          map.setView(markers[id].getLatLng(), 12);
+        } else {
+          if (map.hasLayer(markers[id])) {
+            map.removeLayer(markers[id]);
+          }
+        }
+      });
+      document.getElementById('btnShowAll').style.display = 'inline-block';
+      // Haal journey-details op voor de geselecteerde trein
+      var trainObj = trainData.find(t => String(t.ritId) === String(trainId));
+      if (trainObj) {
+        fetchAndUpdateJourney(trainObj);
+      }
+    }
+
+    // Schakel volgmodus uit en herstel normale fetch-frequentie en toon alle markers
+    function showAllTrains() {
+      followedTrainId = null;
+      startFetchTimer(normalFetchInterval);
+      Object.keys(markers).forEach(id => {
+        if (!map.hasLayer(markers[id])) {
+          markers[id].addTo(map);
+        }
+        var el = markers[id].getElement();
+        if (el) el.classList.remove('follow-marker');
+      });
+      document.getElementById('btnShowAll').style.display = 'none';
+    }
+    document.getElementById('btnShowAll').onclick = showAllTrains;
+
+    // Filter de weergegeven treinen op basis van de ingevoerde zoekcriteria
+    function applyFilters() {
+      var numFilter = document.getElementById('filterNumber').value.trim().toLowerCase();
+      var locFilter = document.getElementById('filterLocation').value.trim().toLowerCase();
+      trainData.forEach(train => {
+        var idStr = String(train.treinNummer).toLowerCase();
+        var matches = true;
+        if (numFilter && idStr.indexOf(numFilter) === -1) {
+          matches = false;
+        }
+        if (!matches) {
+          if (markers[train.ritId] && map.hasLayer(markers[train.ritId])) {
+            map.removeLayer(markers[train.ritId]);
+          }
+        } else {
+          if (markers[train.ritId] && !map.hasLayer(markers[train.ritId])) {
+            markers[train.ritId].addTo(map);
+          }
+        }
+      });
+    }
+    document.getElementById('filterNumber').addEventListener('input', applyFilters);
+    document.getElementById('filterLocation').addEventListener('input', applyFilters);
+
+    // Haal het script ID op uit de huidige URL
+    function getScriptId() {
+      let url = window.location.href;
+      // Als we al een deployment URL hebben
+      if (url.includes('/macros/s/')) {
+        return url.split('/exec')[0]; // Neem alles voor /exec
+      }
+      // Fallback naar de oudere URL (voor testen)
+      return "https://script.google.com/macros/s/AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP/exec";
+    }
+
+    // Update de kaart en statusinformatie met de nieuwste data
+    function updateMapData(data) {
+      // Controleer of het een foutobject is
+      if (data.error) {
+        console.error("API Error:", data);
+        // Bepaal status op basis van foutcode
+        if (['AUTH_ERROR', 'API_ERROR', 'DATA_ERROR', 'NETWORK_ERROR'].includes(data.error)) {
+          updateApiStatus('error', data.message, data);
+        } else if (['RATE_LIMIT', 'TIMEOUT'].includes(data.error)) {
+          updateApiStatus('warning', data.message, data);
+        }
+        return;
+      }
+      
+      // Als we hier zijn, is de data OK
+      updateApiStatus('ok');
+      
+      trainData = data;
+      document.getElementById('trainCount').textContent = 'Aantal treinen: ' + data.length;
+
+      data.forEach(train => {
+        if (followedTrainId && train.ritId !== followedTrainId) return;
+        if (!followedTrainId) {
+          var idStr = String(train.treinNummer).toLowerCase();
+          var numFilter = document.getElementById('filterNumber').value.trim().toLowerCase();
+          if (numFilter && idStr.indexOf(numFilter) === -1) return;
+        }
+        renderTrainMarker(train);
+      });
+      // Verwijder markers die niet meer in de data zitten
+      Object.keys(markers).forEach(id => {
+        if (followedTrainId && id != followedTrainId) return;
+        var stillThere = data.find(t => String(t.ritId) === id);
+        if (!stillThere && map.hasLayer(markers[id])) {
+          map.removeLayer(markers[id]);
+        }
+      });
+      // Voor elk van de treinen: haal journey-details op en update marker (voor alle treinen)
+      data.forEach(train => {
+        fetchAndUpdateJourney(train);
+      });
+    }
+
+    // Haal data op van de backend via fetch (eventueel met trainId-parameter)
+    async function fetchTrainData() {
+      try {
+        // Haal het script ID dynamisch op uit de huidige URL
+        let scriptId = getScriptId();
+        var fetchUrl = `${scriptId}?action=getData`;
+        if (followedTrainId) {
+          fetchUrl += "&trainId=" + followedTrainId;
+        }
+        let res = await fetch(fetchUrl);
+        if (!res.ok) {
+          throw new Error("Request failed: " + res.status);
+        }
+        let data = await res.json();
+        console.log("Ontvangen data:", data);
+        updateMapData(data);
+      } catch(err) {
+        console.error("Fout bij ophalen treingegevens:", err);
+        updateApiStatus('error', "Fout bij ophalen treingegevens: " + err.message);
+      }
+    }
+    
+    // Haal cache-statistieken op
+    async function fetchCacheStats() {
+      try {
+        const scriptId = getScriptId();
+        const res = await fetch(`${scriptId}?action=getCacheStats`);
+        if (!res.ok) {
+          throw new Error("Request failed: " + res.status);
+        }
+        const stats = await res.json();
+        
+        if (!stats.enabled) {
+          document.getElementById('cacheStatsContent').innerHTML = 
+            `<div class="alert alert-warning p-2 mb-0">Cache statistieken zijn uitgeschakeld</div>`;
+          return;
+        }
+        
+        const statsHtml = `
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <tr><td>Hits:</td><td>${stats.hits}</td></tr>
+              <tr><td>Misses:</td><td>${stats.misses}</td></tr>
+              <tr><td>Errors:</td><td>${stats.errors}</td></tr>
+              <tr><td>Hit Ratio:</td><td>${stats.hitRatio}</td></tr>
+              <tr><td>Totaal:</td><td>${stats.total}</td></tr>
+              <tr><td>Sinds:</td><td>${new Date(stats.sinceReset).toLocaleTimeString()}</td></tr>
+            </table>
+          </div>
+        `;
+        document.getElementById('cacheStatsContent').innerHTML = statsHtml;
+      } catch (error) {
+        console.error("Fout bij ophalen cache-statistieken:", error);
+        document.getElementById('cacheStatsContent').innerHTML = 
+          `<div class="alert alert-danger p-2 mb-0">Fout bij ophalen: ${error.message}</div>`;
+      }
+    }
+    
+    // Reset cache-statistieken
+    async function resetCacheStats() {
+      try {
+        const scriptId = getScriptId();
+        await fetch(`${scriptId}?action=resetCacheStats`);
+        document.getElementById('cacheStatsContent').innerHTML = 
+          `<div class="alert alert-success p-2 mb-0">Statistieken gereset!</div>`;
+      } catch (error) {
+        console.error("Fout bij resetten cache-statistieken:", error);
+        document.getElementById('cacheStatsContent').innerHTML = 
+          `<div class="alert alert-danger p-2 mb-0">Fout bij resetten: ${error.message}</div>`;
+      }
+    }
+    
+    // Ververs de data voor een specifieke trein
+    async function refreshTrainData(trainNumber, event) {
+      // Stop het doorklikken naar de marker popup
+      if (event) {
+        event.stopPropagation();
+      }
+      
+      try {
+        const refreshButton = event.target.closest('.refresh-button');
+        if (refreshButton) {
+          // Toon spinner tijdens refresh
+          const originalContent = refreshButton.innerHTML;
+          refreshButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          
+          const scriptId = getScriptId();
+          const res = await fetch(`${scriptId}?action=refreshTrainData&train=${trainNumber}`);
+          
+          if (!res.ok) {
+            throw new Error("Refresh request failed: " + res.status);
+          }
+          
+          // Verwijder trein uit cache-lijst
+          delete cachedTrains[trainNumber];
+          
+          // Herlaad treindata
+          const trainObj = trainData.find(t => t.treinNummer == trainNumber);
+          if (trainObj) {
+            fetchAndUpdateJourney(trainObj);
+          }
+          
+          // Herstel originele inhoud
+          setTimeout(() => {
+            refreshButton.innerHTML = originalContent;
+          }, 1000);
+        }
+      } catch (error) {
+        console.error("Fout bij verversen treindata:", error);
+        showErrorMessage("Fout", `Fout bij verversen data voor trein ${trainNumber}: ${error.message}`);
+      }
+    }
+
+    // Eerste load
+    fetchTrainData();
+  </script>
+</body>
+</html>
