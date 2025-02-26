@@ -1,0 +1,218 @@
+<script>
+/**
+ * App module - Hoofdmodule die de applicatie initialiseert en coördineert
+ * @namespace App
+ */
+var App = (function() {
+  // Private variabelen
+  var _trainData = [];
+  var _fetchTimer = null;
+  var _normalFetchInterval = 5000; // 5 seconden
+  var _fastFetchInterval = 1000;   // 1 seconde
+  
+  /**
+   * Initialiseer de applicatie
+   */
+  function init() {
+    // Initialiseer UI
+    UI.init();
+    
+    // Initialiseer map
+    Map.init();
+    
+    // Start met ophalen van data
+    startFetchTimer(_normalFetchInterval);
+    
+    console.log('LiveTreinen App geïnitialiseerd');
+  }
+  
+  /**
+   * Start of herstart de timer voor het ophalen van data
+   * @param {number} interval - Interval in milliseconden
+   */
+  function startFetchTimer(interval) {
+    if (_fetchTimer) clearInterval(_fetchTimer);
+    _fetchTimer = setInterval(fetchTrainData, interval);
+  }
+  
+  /**
+   * Haal treindata op van de API
+   */
+  async function fetchTrainData() {
+    try {
+      // Bepaal of we specifiek moeten filteren op een treinID
+      const followedTrainId = Map.getFollowedTrainId();
+      const data = await Api.getTrainPositions(followedTrainId);
+      
+      console.log("Ontvangen data:", data);
+      updateMapData(data);
+    } catch(err) {
+      console.error("Fout bij ophalen treingegevens:", err);
+      UI.updateApiStatus('error', "Fout bij ophalen treingegevens: " + err.message, err);
+    }
+  }
+  
+  /**
+   * Update de kaart en statusinformatie met de nieuwste data
+   * @param {Array} data - Array met treindata
+   */
+  function updateMapData(data) {
+    // Controleer of het een foutobject is
+    if (data.error) {
+      console.error("API Error:", data);
+      // Bepaal status op basis van foutcode
+      if (['AUTH_ERROR', 'API_ERROR', 'DATA_ERROR', 'NETWORK_ERROR'].includes(data.error)) {
+        UI.updateApiStatus('error', data.message, data);
+      } else if (['RATE_LIMIT', 'TIMEOUT'].includes(data.error)) {
+        UI.updateApiStatus('warning', data.message, data);
+      }
+      return;
+    }
+    
+    // Als we hier zijn, is de data OK
+    UI.updateApiStatus('ok');
+    
+    _trainData = data;
+    UI.updateTrainCount(data.length);
+
+    // Normaal filteren
+    const filters = UI.getFilters();
+    
+    // Verwerk elke trein in de dataset
+    data.forEach(train => {
+      const trainObj = Models.validateTrainData(train);
+      
+      if (Map.getFollowedTrainId() && trainObj.ritId !== Map.getFollowedTrainId()) return;
+      if (!Map.getFollowedTrainId()) {
+        if (filters.number && String(trainObj.treinNummer).toLowerCase().indexOf(filters.number) === -1) return;
+      }
+      
+      Map.renderTrainMarker(trainObj);
+    });
+    
+    // Verwijder markers die niet meer in de data zitten
+    Map.cleanupMarkers(data);
+    
+    // Voor elk van de treinen: haal journey-details op en update marker
+    data.forEach(train => {
+      fetchAndUpdateJourney(train);
+    });
+  }
+  
+  /**
+   * Asynchrone functie: haal journey-details op en update marker
+   * @param {Object} train - Trein data object
+   */
+  async function fetchAndUpdateJourney(train) {
+    try {
+      // Controleer of deze trein in cache zit
+      const isCached = await Api.checkCache(train.treinNummer);
+      
+      // Haal journey details op
+      const journeyData = await Api.getJourneyDetails(train.treinNummer);
+      
+      // Valideer de journey data
+      const validatedJourney = Models.validateJourneyData(journeyData);
+      
+      // Maak cache info object
+      const cacheInfo = Models.createCacheInfo(isCached, validatedJourney.lastUpdated);
+      
+      // Update de marker met journey data
+      Map.updateMarkerWithJourneyData(train, validatedJourney, cacheInfo);
+    } catch(error) {
+      console.error("Error fetching journey details for train", train.treinNummer, error);
+      UI.updateApiStatus('error', `Fout bij ophalen details voor trein ${train.treinNummer}`, { 
+        errorMessage: error.message 
+      });
+    }
+  }
+  
+  /**
+   * Activeer volgmodus voor een specifieke trein
+   * @param {string|number} trainId - Rit ID van de te volgen trein
+   */
+  function followTrain(trainId) {
+    Map.startFollowMode(trainId);
+    startFetchTimer(_fastFetchInterval);  // Zet updatefrequentie op 1 sec
+    UI.toggleShowAllButton(true);
+    
+    // Haal journey-details op voor de geselecteerde trein
+    var trainObj = _trainData.find(t => String(t.ritId) === String(trainId));
+    if (trainObj) {
+      fetchAndUpdateJourney(trainObj);
+    }
+  }
+  
+  /**
+   * Schakel volgmodus uit en herstel normale fetch-frequentie
+   */
+  function showAllTrains() {
+    Map.stopFollowMode();
+    startFetchTimer(_normalFetchInterval);
+    UI.toggleShowAllButton(false);
+  }
+  
+  /**
+   * Pas filters toe op de weergegeven treinen
+   */
+  function applyFilters() {
+    const filters = UI.getFilters();
+    Map.applyFilters(filters.number, filters.location);
+  }
+  
+  /**
+   * Ververs de data voor een specifieke trein
+   * @param {string|number} trainNumber - Treinnummer om te verversen
+   * @param {Event} event - Event object
+   */
+  async function refreshTrainData(trainNumber, event) {
+    // Stop het doorklikken naar de marker popup
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    try {
+      const refreshButton = event.target.closest('.refresh-button');
+      if (refreshButton) {
+        // Toon spinner tijdens refresh
+        const originalContent = refreshButton.innerHTML;
+        refreshButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        // Stuur ververs-verzoek naar API
+        await Api.refreshTrainData(trainNumber);
+        
+        // Herlaad treindata
+        const trainObj = _trainData.find(t => t.treinNummer == trainNumber);
+        if (trainObj) {
+          fetchAndUpdateJourney(trainObj);
+        }
+        
+        // Herstel originele inhoud
+        setTimeout(() => {
+          refreshButton.innerHTML = originalContent;
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Fout bij verversen treindata:", error);
+      UI.showErrorMessage("Fout", `Fout bij verversen data voor trein ${trainNumber}: ${error.message}`);
+    }
+  }
+  
+  // Public API
+  return {
+    init: init,
+    fetchTrainData: fetchTrainData,
+    followTrain: followTrain,
+    showAllTrains: showAllTrains,
+    applyFilters: applyFilters,
+    refreshTrainData: refreshTrainData
+  };
+})();
+
+// Start de applicatie wanneer de pagina geladen is
+document.addEventListener('DOMContentLoaded', function() {
+  App.init();
+  // Haal direct data op na initialisatie
+  App.fetchTrainData();
+});
+</script>
