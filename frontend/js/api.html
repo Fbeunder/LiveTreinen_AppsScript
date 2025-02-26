@@ -1,0 +1,177 @@
+<script>
+/**
+ * API module - Verantwoordelijk voor alle communicatie met de backend
+ * @namespace Api
+ */
+var Api = (function() {
+  // Private variabelen
+  var _scriptId = null;
+  var _cachedTrains = {};
+  
+  /**
+   * Haal het script ID op uit de huidige URL
+   * @private
+   * @returns {string} Het script ID voor API calls
+   */
+  function _getScriptId() {
+    if (_scriptId) return _scriptId;
+    
+    let url = window.location.href;
+    // Als we al een deployment URL hebben
+    if (url.includes('/macros/s/')) {
+      _scriptId = url.split('/exec')[0]; // Neem alles voor /exec
+      return _scriptId;
+    }
+    // Fallback naar de oudere URL (voor testen)
+    _scriptId = "https://script.google.com/macros/s/AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP/exec";
+    return _scriptId;
+  }
+  
+  /**
+   * Maak een basis API verzoek
+   * @private
+   * @param {string} endpoint - API endpoint (actie)
+   * @param {Object} [params={}] - Parameters voor het verzoek
+   * @returns {Promise<Object>} Response data
+   * @throws {Error} API fout
+   */
+  async function _makeApiRequest(endpoint, params = {}) {
+    try {
+      const scriptId = _getScriptId();
+      let url = `${scriptId}?action=${endpoint}`;
+      
+      // Voeg extra parameters toe
+      Object.keys(params).forEach(key => {
+        url += `&${key}=${encodeURIComponent(params[key])}`;
+      });
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Check voor API fouten
+      if (data.error) {
+        throw {
+          type: data.error,
+          message: data.message || 'Unknown API error',
+          details: data
+        };
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Error in API request to ${endpoint}:`, error);
+      
+      // Gestandaardiseerde fout teruggeven
+      if (error.type && error.message) {
+        throw error;
+      } else {
+        throw {
+          type: 'CLIENT_ERROR',
+          message: error.message || 'Network or client error',
+          details: { originalError: error.toString() }
+        };
+      }
+    }
+  }
+  
+  /**
+   * Haal treinposities op van de backend
+   * @param {string|number} [trainId] - Optionele trainId om te filteren
+   * @returns {Promise<Array>} Array met treinposities
+   */
+  async function getTrainPositions(trainId) {
+    const params = trainId ? { trainId } : {};
+    return _makeApiRequest('getData', params);
+  }
+  
+  /**
+   * Controleer of er recente cache is voor een specifieke trein
+   * @param {string|number} trainNumber - Treinnummer om te controleren
+   * @returns {Promise<boolean>} True als er recente cache is
+   */
+  async function checkCache(trainNumber) {
+    // Indien we dit al weten, geef direct terug
+    if (_cachedTrains[trainNumber] !== undefined) {
+      return _cachedTrains[trainNumber];
+    }
+    
+    try {
+      const data = await _makeApiRequest('checkCache', { train: trainNumber });
+      _cachedTrains[trainNumber] = data.hasFreshCache;
+      return data.hasFreshCache;
+    } catch (error) {
+      console.warn(`Kon cache status niet controleren voor trein ${trainNumber}:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Haal journey-details op voor een specifieke trein
+   * @param {string|number} trainNumber - Treinnummer om details voor op te halen
+   * @returns {Promise<Object>} Journey details
+   */
+  async function getJourneyDetails(trainNumber) {
+    return _makeApiRequest('getJourney', { train: trainNumber });
+  }
+  
+  /**
+   * Haal cache-statistieken op
+   * @returns {Promise<Object>} Cache statistieken
+   */
+  async function getCacheStats() {
+    return _makeApiRequest('getCacheStats');
+  }
+  
+  /**
+   * Reset cache-statistieken
+   * @returns {Promise<Object>} Resultaat van de reset
+   */
+  async function resetCacheStats() {
+    return _makeApiRequest('resetCacheStats');
+  }
+  
+  /**
+   * Ververs de data voor een specifieke trein
+   * @param {string|number} trainNumber - Treinnummer om te verversen
+   * @returns {Promise<Object>} Resultaat van de refresh
+   */
+  async function refreshTrainData(trainNumber) {
+    try {
+      const result = await _makeApiRequest('refreshTrainData', { train: trainNumber });
+      // Verwijder trein uit de cache-lijst als refreshen gelukt is
+      if (result.success) {
+        delete _cachedTrains[trainNumber];
+      }
+      return result;
+    } catch (error) {
+      console.error(`Fout bij verversen data voor trein ${trainNumber}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Markeer een trein als gecached
+   * @param {string|number} trainNumber - Treinnummer
+   * @param {boolean} isCached - Cache status
+   */
+  function setCacheStatus(trainNumber, isCached) {
+    _cachedTrains[trainNumber] = isCached;
+  }
+  
+  // Public API
+  return {
+    getTrainPositions: getTrainPositions,
+    checkCache: checkCache,
+    getJourneyDetails: getJourneyDetails,
+    getCacheStats: getCacheStats,
+    resetCacheStats: resetCacheStats,
+    refreshTrainData: refreshTrainData,
+    setCacheStatus: setCacheStatus,
+    getScriptId: _getScriptId  // Expose voor andere modules
+  };
+})();
+</script>
