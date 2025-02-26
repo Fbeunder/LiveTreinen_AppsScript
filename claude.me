@@ -1,0 +1,67 @@
+# LiveTreinen_AppsScript
+
+## 1. Projectoverzicht
+Dit is een Google Apps Script project dat realtime treinposities en -informatie van de NS API ophaalt en visualiseert op een interactieve kaart. De applicatie toont treinen op een OpenStreetMap-kaart met details zoals treinnummer, type, snelheid en vertraging.
+
+## 2. Architectuur
+Het project bestaat uit de volgende componenten:
+- Backend (Google Apps Script) voor het ophalen van NS API-gegevens
+- Frontend (HTML/JavaScript) voor het weergeven en interactie met treingegevens
+- Integratie met Leaflet.js voor kaartvisualisatie
+
+## 3. Modules
+
+### Backend (Code.js)
+- **Status**: Volledig functioneel, maar kan uitgebreid worden
+- **Bestandsnaam**: Code.js
+- **Functionaliteit**: Haalt treingegevens op van de NS API en bevat endpoints voor de frontend
+- **Belangrijkste functies**:
+  - `doGet(e)`: Hoofdfunctie die verzoeken verwerkt (HTML pagina of data endpoints)
+    - Parameters: e (event object)
+    - Return: HTML output of JSON data
+  - `getTreinPosities(trainId)`: Haalt treinposities op van de NS API
+    - Parameters: trainId (optioneel, voor filteren op treinnummer)
+    - Return: Array met treinposities
+    - Afhankelijkheden: NS API, CacheService
+  - `getJourneyDetails(trainNumber)`: Haalt reisinformatie op voor een specifieke trein
+    - Parameters: trainNumber (treinnummer)
+    - Return: Object met volgende halte en vertragingsinformatie
+    - Afhankelijkheden: NS API
+
+### Frontend (Index.html)
+- **Status**: Volledig functioneel, maar kan verbeterd worden
+- **Bestandsnaam**: Index.html
+- **Functionaliteit**: Visualiseert treinposities op een kaart en biedt gebruikersinteractie
+- **Belangrijkste componenten**:
+  - Kaartintegratie met Leaflet.js
+  - Zoekfuncties (op treinnummer en locatie)
+  - Volgmodus voor specifieke treinen
+  - Weergave van treindetails (inclusief vertraging met kleurcodering)
+
+### Configuratie
+- **Status**: Basis aanwezig
+- **Bestandsnaam**: appsscript.json
+- **Functionaliteit**: Configuratie voor het Apps Script project
+
+## 4. Status
+- Bestaande modules zijn volledig functioneel
+- Backend API-integratie werkt correct
+- Frontend visualisatie werkt correct
+- Basis zoek- en filterfunctionaliteit is aanwezig
+
+## 5. Volgende stappen
+
+### Must-haves:
+1. Verbeteren foutafhandeling en logging voor NS API-integratie
+2. Uitbreiden van de cache-functionaliteit voor betere performance
+3. Toevoegen van informatieve meldingen bij API-fouten
+4. Optimaliseren van de code voor betere performance
+5. Script ID: Vragen bij de volgende stap
+
+### Nice-to-haves:
+1. Toevoegen van extra treindetails (materieel, vervoerder, etc.)
+2. Implementeren van stationszoekfunctie
+3. Uitbreiden van filteropties (op type trein, vertraging, etc.)
+4. Toevoegen van historische gegevens/tracking
+5. Verbeteren van de UI met responsieve elementen
+6. Toevoegen van een dashboard met statistieken
