@@ -8,13 +8,18 @@
  * @return {string|null} NS API-sleutel of null als deze niet geconfigureerd is
  */
 function getNsApiKey() {
-  const apiKey = PropertiesService.getScriptProperties().getProperty("NS_API_KEY");
-  if (!apiKey) {
-    const error = 'NS API-sleutel ontbreekt. Configureer deze in de ScriptProperties.';
-    logError(error);
-    return null;
-  }
-  return apiKey;
+  // Cache de API-sleutel voor langere tijd, aangezien deze niet vaak verandert
+  const apiKeyCache = buildCacheKey(CACHE_PREFIX.CONFIG, 'ns_api_key');
+  
+  return getOrFetchData(apiKeyCache, function() {
+    const apiKey = PropertiesService.getScriptProperties().getProperty("NS_API_KEY");
+    if (!apiKey) {
+      const error = 'NS API-sleutel ontbreekt. Configureer deze in de ScriptProperties.';
+      logError(error);
+      return null;
+    }
+    return apiKey;
+  }, CACHE_TTL.CONFIG_SETTINGS);
 }
 
 /**
@@ -42,7 +47,7 @@ function makeApiRequest(url, options, resourceName) {
           const error = `API-limiet overschreden (${responseCode})`;
           logWarning(error);
           if (retries < MAX_RETRIES) {
-            retries++;
+            retries++; 
             Utilities.sleep(1000 * (retries * 2)); // Exponential backoff
             continue;
           }
@@ -60,6 +65,22 @@ function makeApiRequest(url, options, resourceName) {
           const error = `Onverwachte HTTP status: ${responseCode}`;
           logError(error);
           return handleApiError(ERROR_TYPES.API_ERROR, error);
+        }
+      }
+      
+      // Sla response headers op als ze ETag of Last-Modified bevatten (voor conditional requests)
+      const headers = response.getAllHeaders();
+      if (STATS_ENABLED && (headers['ETag'] || headers['Last-Modified'])) {
+        const headersCache = buildCacheKey(CACHE_PREFIX.CONFIG, 'api_headers', { url: url });
+        try {
+          const headersToCache = {};
+          if (headers['ETag']) headersToCache.ETag = headers['ETag'];
+          if (headers['Last-Modified']) headersToCache.LastModified = headers['Last-Modified'];
+          
+          const cache = CacheService.getScriptCache();
+          cache.put(headersCache, JSON.stringify(headersToCache), CACHE_TTL.CONFIG_SETTINGS);
+        } catch (error) {
+          logWarning('Fout bij cachen van API-response headers', error);
         }
       }
       
@@ -101,7 +122,9 @@ function makeApiRequest(url, options, resourceName) {
  * @return {Object[]} Array met treinposities of foutobject
  */
 function getTreinPosities(trainId) {
-  const cacheKey = "trainPositions" + (trainId ? "_" + trainId : "");
+  // Bouw een consistente cache-sleutel met prefix
+  const cacheParams = trainId ? { trainId: trainId } : null;
+  const cacheKey = buildCacheKey(CACHE_PREFIX.TRAIN, 'positions', cacheParams);
   
   return getOrFetchData(cacheKey, function() {
     var apiKey = getNsApiKey();
@@ -109,13 +132,30 @@ function getTreinPosities(trainId) {
       return handleApiError(ERROR_TYPES.AUTHENTICATION, 'NS API-sleutel ontbreekt');
     }
     
-    var options = {
+    // Controleer of er cached API response headers zijn voor conditional requests
+    let options = {
       method: "get",
       headers: {
         "Ocp-Apim-Subscription-Key": apiKey
       },
       muteHttpExceptions: true
     };
+    
+    if (STATS_ENABLED) {
+      try {
+        const headersCache = buildCacheKey(CACHE_PREFIX.CONFIG, 'api_headers', { url: NS_TRAIN_API_ENDPOINT });
+        const cache = CacheService.getScriptCache();
+        const cachedHeaders = cache.get(headersCache);
+        
+        if (cachedHeaders) {
+          const headers = JSON.parse(cachedHeaders);
+          if (headers.ETag) options.headers['If-None-Match'] = headers.ETag;
+          if (headers.LastModified) options.headers['If-Modified-Since'] = headers.LastModified;
+        }
+      } catch (error) {
+        logWarning('Fout bij lezen van gecachte headers voor conditional request', error);
+      }
+    }
     
     const data = makeApiRequest(NS_TRAIN_API_ENDPOINT, options, "treinposities");
     
@@ -143,7 +183,7 @@ function getTreinPosities(trainId) {
     }
     
     return treinen;
-  });
+  }, CACHE_TTL.TRAIN_POSITIONS); // Gebruik specifieke TTL voor treinposities
 }
 
 /**
@@ -158,7 +198,8 @@ function getJourneyDetails(trainNumber) {
     return handleApiError(ERROR_TYPES.DATA_ERROR, error);
   }
   
-  const cacheKey = "journey_" + trainNumber;
+  // Bouw een consistente cache-sleutel met prefix
+  const cacheKey = buildCacheKey(CACHE_PREFIX.JOURNEY, trainNumber);
   
   return getOrFetchData(cacheKey, function() {
     var apiKey = getNsApiKey();
@@ -182,7 +223,11 @@ function getJourneyDetails(trainNumber) {
       return data; // Geef foutobject terug
     }
     
-    var result = { nextStopDestination: "", delayInSeconds: 0 };
+    var result = { 
+      nextStopDestination: "", 
+      delayInSeconds: 0,
+      lastUpdated: new Date().toISOString() // Voeg timestamp toe voor frontend
+    };
     
     // Probeer gegevens uit de response te extraheren
     try {
@@ -218,5 +263,55 @@ function getJourneyDetails(trainNumber) {
     }
     
     return result;
-  });
+  }, CACHE_TTL.JOURNEY_DETAILS); // Gebruik specifieke TTL voor journey details
+}
+
+/**
+ * Haalt cachestatistieken op voor monitoring
+ * @return {Object} Statistieken over cache-gebruik
+ */
+function getCacheStatistics() {
+  return getCacheStats();
+}
+
+/**
+ * Reset cache statistieken
+ * @return {Object} Resultaat van de reset
+ */
+function resetCacheStatistics() {
+  return resetCacheStats();
+}
+
+/**
+ * Forceert het verversen van data voor een specifieke trein
+ * @param {string} trainNumber - Treinnummer om te verversen
+ * @return {Object} Resultaat van de operatie
+ */
+function refreshTrainData(trainNumber) {
+  if (!trainNumber) {
+    return { success: false, message: "Geen treinnummer opgegeven" };
+  }
+  
+  try {
+    // Haal een lijst van sleutels op die geraakt moeten worden
+    const positionKey = buildCacheKey(CACHE_PREFIX.TRAIN, 'positions', { trainId: trainNumber });
+    const journeyKey = buildCacheKey(CACHE_PREFIX.JOURNEY, trainNumber);
+    
+    // Verwijder beide uit de cache
+    const cache = CacheService.getScriptCache();
+    cache.removeAll([positionKey, journeyKey]);
+    
+    logInfo(`Cache vernieuwd voor trein ${trainNumber}`);
+    return { 
+      success: true, 
+      message: `Cache vernieuwd voor trein ${trainNumber}`,
+      clearedKeys: [positionKey, journeyKey]
+    };
+  } catch (error) {
+    logError(`Fout bij vernieuwen van cache voor trein ${trainNumber}`, error);
+    return { 
+      success: false, 
+      message: `Fout bij vernieuwen: ${error.message}` 
+    };
+  }
 }
