@@ -1,0 +1,7 @@
+# Dit project is gebouwd met Google Apps Script en heeft geen Python-afhankelijkheden
+# Alle code wordt uitgevoerd in de Google Apps Script-omgeving
+# 
+# Voor lokale ontwikkeling of het gebruiken van Clasp CLI zijn de volgende 
+# Node.js packages nuttig:
+# clasp
+# @types/google-apps-script
