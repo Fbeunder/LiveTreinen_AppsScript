@@ -12,7 +12,7 @@ Het project bestaat uit de volgende componenten:
 ## 3. Modules
 
 ### Backend (Code.js)
-- **Status**: Volledig functioneel, maar kan uitgebreid worden
+- **Status**: Verbeterd met uitgebreide foutafhandeling
 - **Bestandsnaam**: Code.js
 - **Functionaliteit**: Haalt treingegevens op van de NS API en bevat endpoints voor de frontend
 - **Belangrijkste functies**:
@@ -21,15 +21,21 @@ Het project bestaat uit de volgende componenten:
     - Return: HTML output of JSON data
   - `getTreinPosities(trainId)`: Haalt treinposities op van de NS API
     - Parameters: trainId (optioneel, voor filteren op treinnummer)
-    - Return: Array met treinposities
+    - Return: Array met treinposities of foutobject
     - Afhankelijkheden: NS API, CacheService
   - `getJourneyDetails(trainNumber)`: Haalt reisinformatie op voor een specifieke trein
     - Parameters: trainNumber (treinnummer)
     - Return: Object met volgende halte en vertragingsinformatie
     - Afhankelijkheden: NS API
+  - `logInfo(message)`, `logWarning(message, error)`, `logError(message, error)`: Nieuwe logging-functies
+    - Parameters: message (logbericht), error (optioneel foutobject)
+    - Return: Geen
+  - `handleApiError(errorType, detailedMessage)`: Standaardiseert API-foutafhandeling
+    - Parameters: errorType (fouttype uit ERROR_TYPES), detailedMessage (gedetailleerde foutomschrijving)
+    - Return: Gestandaardiseerd foutobject
 
 ### Frontend (Index.html)
-- **Status**: Volledig functioneel, maar kan verbeterd worden
+- **Status**: Verbeterd met betere foutweergave
 - **Bestandsnaam**: Index.html
 - **Functionaliteit**: Visualiseert treinposities op een kaart en biedt gebruikersinteractie
 - **Belangrijkste componenten**:
@@ -37,6 +43,8 @@ Het project bestaat uit de volgende componenten:
   - Zoekfuncties (op treinnummer en locatie)
   - Volgmodus voor specifieke treinen
   - Weergave van treindetails (inclusief vertraging met kleurcodering)
+  - Nieuwe foutafhandeling met visuele status-indicator en error toast
+  - Dynamische script ID detectie
 
 ### Configuratie
 - **Status**: Basis aanwezig
@@ -44,19 +52,19 @@ Het project bestaat uit de volgende componenten:
 - **Functionaliteit**: Configuratie voor het Apps Script project
 
 ## 4. Status
-- Bestaande modules zijn volledig functioneel
-- Backend API-integratie werkt correct
-- Frontend visualisatie werkt correct
-- Basis zoek- en filterfunctionaliteit is aanwezig
+- Verbeterde foutafhandeling en logging voor NS API-integratie is geïmplementeerd
+- Frontend UI is bijgewerkt met verbeterde foutmeldingen en status-indicatoren
+- Verbeterde cache-functionaliteit met specifieke caching per trein/journey is geïmplementeerd
+- API-communicatie is robuuster gemaakt met retry-mechanisme
 
 ## 5. Volgende stappen
 
 ### Must-haves:
-1. Verbeteren foutafhandeling en logging voor NS API-integratie
+1. ✅ Verbeteren foutafhandeling en logging voor NS API-integratie (Afgerond in issue #1)
 2. Uitbreiden van de cache-functionaliteit voor betere performance
 3. Toevoegen van informatieve meldingen bij API-fouten
 4. Optimaliseren van de code voor betere performance
-5. Script ID: Vragen bij de volgende stap
+5. Script ID: Nog niet bekend, moet worden opgevraagd
 
 ### Nice-to-haves:
 1. Toevoegen van extra treindetails (materieel, vervoerder, etc.)
@@ -65,3 +73,5 @@ Het project bestaat uit de volgende componenten:
 4. Toevoegen van historische gegevens/tracking
 5. Verbeteren van de UI met responsieve elementen
 6. Toevoegen van een dashboard met statistieken
+
+Alle must-haves zijn essentieel voor de basiswerking en betrouwbaarheid van de applicatie.
