@@ -6,6 +6,8 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <!-- Leaflet CSS (integrity-attribuut verwijderd) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Font Awesome voor iconen -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <style>
     html, body {
       height: 100%;
@@ -39,6 +41,42 @@
     .status-info {
       margin-left: 1rem;
       font-weight: bold;
+      display: flex;
+      align-items: center;
+    }
+    /* Status indicator styling */
+    .api-status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-ok {
+      background-color: #28a745; /* groen */
+    }
+    .status-warning {
+      background-color: #ffc107; /* geel */
+    }
+    .status-error {
+      background-color: #dc3545; /* rood */
+    }
+    /* Error toast styling */
+    #errorToast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      display: none;
+      min-width: 300px;
+    }
+    #detailsContainer {
+      display: none;
+      border-top: 1px solid #ddd;
+      margin-top: 10px;
+      padding-top: 10px;
+      font-size: 0.9em;
     }
   </style>
 </head>
@@ -55,6 +93,7 @@
     </div>
     <div class="status-info mb-2">
       <span id="trainCount">Aantal treinen: 0</span> | 
+      <span class="api-status-indicator" id="apiStatusIndicator"></span>
       <span id="apiStatus">API status: onbekend</span>
     </div>
     <button id="btnShowAll" class="btn btn-secondary btn-sm">Toon alle treinen</button>
@@ -62,9 +101,31 @@
 
   <!-- Container voor de kaart -->
   <div id="map"></div>
+  
+  <!-- Error Toast voor foutmeldingen -->
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="10000">
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-circle mr-2"></i>
+      <strong class="mr-auto" id="errorTitle">Foutmelding</strong>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="toast-body">
+      <div id="errorMessage">Er is een fout opgetreden.</div>
+      <button id="btnShowDetails" class="btn btn-sm btn-outline-secondary mt-2">Toon details</button>
+      <div id="detailsContainer">
+        <div id="errorDetails"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Leaflet JS (integrity-attribuut verwijderd) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Bootstrap JS voor tooltips en toasts -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <script>
     // Initialiseer de kaart met een centraal Nederland perspectief
     var map = L.map('map').setView([52.1, 5.2], 8);
@@ -77,6 +138,7 @@
     var markers = {};          // Alle markers, gesorteerd op ritId
     var trainData = [];        // Laatste dataset van treinen
     var followedTrainId = null; // RitId van de trein die gevolgd wordt
+    var lastApiStatus = null;   // Laatste API status (ok, warning, error)
 
     // Update-fetchinterval (normaal en bij volgmodus)
     var normalFetchInterval = 5000; // 5 seconden
@@ -84,9 +146,71 @@
     var fetchTimer = null;
     startFetchTimer(normalFetchInterval);
 
+    // Error toast element
+    var errorToast = $('#errorToast');
+    var detailsContainer = $('#detailsContainer');
+    
+    // Error details toggle
+    document.getElementById('btnShowDetails').addEventListener('click', function() {
+      if (detailsContainer.css('display') === 'none') {
+        detailsContainer.show();
+        this.textContent = 'Verberg details';
+      } else {
+        detailsContainer.hide();
+        this.textContent = 'Toon details';
+      }
+    });
+
     function startFetchTimer(interval) {
       if (fetchTimer) clearInterval(fetchTimer);
       fetchTimer = setInterval(fetchTrainData, interval);
+    }
+
+    // Set API status indicator
+    function updateApiStatus(status, message, details) {
+      lastApiStatus = status;
+      var indicator = document.getElementById('apiStatusIndicator');
+      var statusText = document.getElementById('apiStatus');
+      
+      // Verwijder alle bestaande classes
+      indicator.classList.remove('status-ok', 'status-warning', 'status-error');
+      
+      // Update indicator en text
+      if (status === 'ok') {
+        indicator.classList.add('status-ok');
+        statusText.textContent = 'API status: OK';
+      } else if (status === 'warning') {
+        indicator.classList.add('status-warning');
+        statusText.textContent = 'API status: Waarschuwing';
+        showErrorMessage('Waarschuwing', message, details);
+      } else if (status === 'error') {
+        indicator.classList.add('status-error');
+        statusText.textContent = 'API status: Fout';
+        showErrorMessage('Fout', message, details);
+      } else {
+        indicator.classList.add('status-warning');
+        statusText.textContent = 'API status: Onbekend';
+      }
+    }
+    
+    // Toon error toast met details
+    function showErrorMessage(title, message, details) {
+      document.getElementById('errorTitle').textContent = title;
+      document.getElementById('errorMessage').textContent = message || 'Er is een fout opgetreden.';
+      
+      if (details) {
+        document.getElementById('errorDetails').textContent = JSON.stringify(details, null, 2);
+        document.getElementById('btnShowDetails').style.display = 'inline-block';
+      } else {
+        document.getElementById('btnShowDetails').style.display = 'none';
+      }
+      
+      // Reset details container
+      detailsContainer.hide();
+      document.getElementById('btnShowDetails').textContent = 'Toon details';
+      
+      // Toon de toast
+      errorToast.toast('show');
     }
 
     // Functie voor het bepalen van een icon op basis van delay
@@ -130,9 +254,24 @@
     // Asynchrone functie: haal journey-details op en update marker
     async function fetchAndUpdateJourney(train) {
       try {
-        let journeyRes = await fetch("https://script.google.com/macros/s/AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP/exec?action=getJourney&train=" + train.treinNummer);
+        // Haal het script ID dynamisch op uit de huidige URL
+        let scriptId = getScriptId();
+        let journeyRes = await fetch(`${scriptId}?action=getJourney&train=${train.treinNummer}`);
         if (!journeyRes.ok) throw new Error("Journey request failed: " + journeyRes.status);
         let journeyData = await journeyRes.json();
+        
+        // Controleer of er een fout is
+        if (journeyData.error) {
+          console.warn(`Journey API fout voor trein ${train.treinNummer}:`, journeyData);
+          // Bepaal status op basis van foutcode
+          if (['AUTH_ERROR', 'API_ERROR', 'DATA_ERROR', 'NETWORK_ERROR'].includes(journeyData.error)) {
+            updateApiStatus('error', journeyData.message, journeyData);
+          } else if (['RATE_LIMIT', 'TIMEOUT'].includes(journeyData.error)) {
+            updateApiStatus('warning', journeyData.message, journeyData);
+          }
+          return;
+        }
+        
         console.log("Journey data for train", train.treinNummer, ":", journeyData);
         if (markers[train.ritId]) {
           // Bepaal nieuw icon op basis van delay
@@ -140,11 +279,23 @@
           markers[train.ritId].setIcon(newIcon);
           // Update popup: voeg journey-info toe
           let baseContent = `🚆 <b>Trein ${train.treinNummer}</b><br>Type: ${train.type}<br>Snelheid: ${train.snelheid} km/u`;
-          let journeyContent = `<br>Next stop: ${journeyData.nextStopDestination} | Delay: ${journeyData.delayInSeconds} sec`;
+          let journeyContent = `<br>Next stop: ${journeyData.nextStopDestination || 'Onbekend'} | Delay: ${journeyData.delayInSeconds} sec`;
+          
+          // Voeg extra informatie toe als beschikbaar
+          if (journeyData.plannedDurationInMinutes) {
+            journeyContent += `<br>Geplande reisduur: ${journeyData.plannedDurationInMinutes} min`;
+          }
+          if (journeyData.isLastStop) {
+            journeyContent += '<br><i>Dit is de eindbestemming</i>';
+          }
+          
           markers[train.ritId].getPopup().setContent(baseContent + journeyContent);
         }
       } catch(error) {
         console.error("Error fetching journey details for train", train.treinNummer, error);
+        updateApiStatus('error', `Fout bij ophalen details voor trein ${train.treinNummer}`, { 
+          errorMessage: error.message 
+        });
       }
     }
 
@@ -211,11 +362,36 @@
     document.getElementById('filterNumber').addEventListener('input', applyFilters);
     document.getElementById('filterLocation').addEventListener('input', applyFilters);
 
+    // Haal het script ID op uit de huidige URL
+    function getScriptId() {
+      let url = window.location.href;
+      // Als we al een deployment URL hebben
+      if (url.includes('/macros/s/')) {
+        return url.split('/exec')[0]; // Neem alles voor /exec
+      }
+      // Fallback naar de oudere URL (voor testen)
+      return "https://script.google.com/macros/s/AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP/exec";
+    }
+
     // Update de kaart en statusinformatie met de nieuwste data
     function updateMapData(data) {
+      // Controleer of het een foutobject is
+      if (data.error) {
+        console.error("API Error:", data);
+        // Bepaal status op basis van foutcode
+        if (['AUTH_ERROR', 'API_ERROR', 'DATA_ERROR', 'NETWORK_ERROR'].includes(data.error)) {
+          updateApiStatus('error', data.message, data);
+        } else if (['RATE_LIMIT', 'TIMEOUT'].includes(data.error)) {
+          updateApiStatus('warning', data.message, data);
+        }
+        return;
+      }
+      
+      // Als we hier zijn, is de data OK
+      updateApiStatus('ok');
+      
       trainData = data;
       document.getElementById('trainCount').textContent = 'Aantal treinen: ' + data.length;
-      document.getElementById('apiStatus').textContent = 'API status: OK';
 
       data.forEach(train => {
         if (followedTrainId && train.ritId !== followedTrainId) return;
@@ -243,18 +419,22 @@
     // Haal data op van de backend via fetch (eventueel met trainId-parameter)
     async function fetchTrainData() {
       try {
-        var fetchUrl = "https://script.google.com/macros/s/AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP/exec?action=getData";
+        // Haal het script ID dynamisch op uit de huidige URL
+        let scriptId = getScriptId();
+        var fetchUrl = `${scriptId}?action=getData`;
         if (followedTrainId) {
           fetchUrl += "&trainId=" + followedTrainId;
         }
         let res = await fetch(fetchUrl);
-        if (!res.ok) throw new Error("Request failed: " + res.status);
+        if (!res.ok) {
+          throw new Error("Request failed: " + res.status);
+        }
         let data = await res.json();
         console.log("Ontvangen data:", data);
         updateMapData(data);
       } catch(err) {
         console.error("Fout bij ophalen treingegevens:", err);
-        document.getElementById('apiStatus').textContent = "API status: Fout (" + err.message + ")";
+        updateApiStatus('error', "Fout bij ophalen treingegevens: " + err.message);
       }
     }
     // Eerste load
