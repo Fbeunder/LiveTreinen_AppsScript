@@ -1,102 +1,88 @@
-# LiveTreinen Apps Script - Deployment Guide
+# Deployment Instructies
 
-Deze handleiding beschrijft hoe je de modulaire LiveTreinen-applicatie moet deployen naar Google Apps Script.
+Dit document beschrijft hoe je de LiveTreinen_AppsScript code kunt deployen naar Google Apps Script.
 
-## Huidige situatie
+## Stap 1: Ga naar het Google Apps Script project
 
-De codebase is opgedeeld in verschillende modules voor betere onderhoudbaarheid en scheiding van verantwoordelijkheden:
+1. Log in bij Google en ga naar [Google Apps Script](https://script.google.com/)
+2. Open het project met ID `AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP`
+   - Als je geen toegang hebt tot dit specifieke project, maak dan een nieuw project aan.
 
-- `Main.js` - Entry point voor de applicatie
-- `ApiService.js` - API-communicatie
-- `CacheService.js` - Caching-functionaliteit
-- `ErrorHandler.js` - Foutafhandeling en logging
-- `Config.js` - Configuratie-instellingen
+## Stap 2: Bestanden toevoegen
 
-Echter, Google Apps Script ondersteunt geen native JavaScript modules, en er is momenteel geen geautomatiseerd buildproces. Daarom moet je de volgende handmatige stappen volgen.
+### Backend bestanden
 
-## Deployment Opties
+Voeg de volgende backend bestanden toe aan het project:
 
-### Optie 1: Handmatige deployment (aanbevolen voor nu)
+1. **Main.js** - Bevat de `doGet` functie en hoofdlogica
+2. **ApiService.js** - Bevat API-communicatie functies
+3. **CacheService.js** - Bevat caching mechanismen
+4. **ErrorHandler.js** - Bevat foutafhandeling functies
+5. **Config.js** - Bevat configuratie-instellingen
 
-1. **Creëer een nieuw Google Apps Script project**:
-   - Ga naar [script.google.com](https://script.google.com/)
-   - Klik op "Nieuw project"
+Voor elk bestand:
+1. Klik op het + naast "Bestanden" in het linkerpaneel
+2. Kies "Script"
+3. Geef het bestand de juiste naam
+4. Kopieer en plak de inhoud uit de repository
 
-2. **Upload de bestanden**:
-   - Kopieer de inhoud van elk bestand en voeg het toe in het Google Apps Script project
-   - Creëer eerst bestand `Code.js` (is nodig voor de doGet function)
-   - Daarna alle modules in deze volgorde: `Config.js`, `ErrorHandler.js`, `CacheService.js`, `ApiService.js`, `Main.js`
+### Frontend bestanden
 
-3. **Configureer de API-sleutel**:
-   - Ga naar "Project Settings" > "Script Properties"
-   - Voeg een eigenschap toe met naam `NS_API_KEY` en je NS API-sleutel als waarde
+Voeg de volgende frontend bestanden toe:
 
-4. **Upload de HTML-bestanden**:
-   - Kopieer de inhoud van `Index.html` en voeg het toe als HTML-bestand
+1. **Index.html** - Hoofdbestand
+2. **frontend/css/main.html** - CSS voor de applicatie
+3. **frontend/js/models.html** - Data models module
+4. **frontend/js/api.html** - API communicatie module
+5. **frontend/js/map.html** - Kaart functionaliteit
+6. **frontend/js/ui.html** - UI componenten
+7. **frontend/js/app.html** - App controller
 
-5. **Stel de uitvoeringsrechten in**:
-   - Klik op "Deploy" > "New deployment"
-   - Kies "Web app" als type
-   - Stel "Who has access" in op de gewenste doelgroep (bijv. "Anyone")
-   - Klik op "Deploy"
+Voor elk HTML-bestand:
+1. Klik op het + naast "Bestanden" in het linkerpaneel
+2. Kies "HTML"
+3. Geef het bestand de juiste naam (zonder .html extensie)
+   - Voor Index.html kies je "Index"
+   - Voor frontend/css/main.html kies je "frontend/css/main"
+   - etc.
+4. Kopieer en plak de inhoud uit de repository
 
-6. **Autoriseer de nodige toestemmingen**:
-   - Bij het eerste gebruik zal je gevraagd worden om de nodige machtigingen toe te staan
+### Manifest bestand
 
-### Optie 2: Geautomatiseerde deployment met clasp (toekomstig)
+1. Open het bestand `appsscript.json` in het Apps Script project
+2. Kopieer en plak de inhoud van het appsscript.json bestand uit de repository
 
-Voor een geautomatiseerde workflow kan [clasp](https://github.com/google/clasp) worden gebruikt. 
-Dit wordt momenteel onderzocht en zal in een toekomstige update worden geïmplementeerd.
+## Stap 3: Configureren van de NS API-sleutel
 
-## Testen na deployment
+1. Klik op het tandwiel icoon (⚙️) in het linkerpaneel om naar de projectinstellingen te gaan
+2. Klik op "Scripteigenschappen"
+3. Voeg een nieuwe eigenschap toe met naam `NS_API_KEY` en de waarde van je NS API-sleutel
 
-Na de deployment moet je controleren of alles goed werkt:
+## Stap 4: Testen van de applicatie
 
-1. **Basis functionaliteit**:
-   - Open de gedeployde webapplicatie-URL
-   - Controleer of de kaart wordt geladen
-   - Controleer of er treinen worden weergegeven
+1. Klik op de "Opslaan" knop om alle wijzigingen op te slaan
+2. Klik op "Debug" of "Test" om de applicatie te testen
+3. Controleer of de applicatie correct wordt geladen en de treinposities worden weergegeven
 
-2. **API-integratie**:
-   - Zoek een specifiek treinnummer
-   - Controleer of de treindetails correct worden weergegeven
+## Stap 5: Deployen van de applicatie
 
-3. **Foutafhandeling**:
-   - Test het gedrag wanneer de API-sleutel ontbreekt of ongeldig is
-   - Controleer of de foutmeldingen correct worden weergegeven
+1. Klik op "Implementeren" > "Nieuwe implementatie" in de toolbar
+2. Selecteer "Web app" als type implementatie
+3. Geef een beschrijving voor de implementatie, bijvoorbeeld "LiveTreinen v1.0"
+4. Configureer de toegangsrechten:
+   - Execute as: "Me" (of de gewenste account)
+   - Who has access: "Anyone" voor openbare toegang, of "Anyone with Google account" voor beperkte toegang
+5. Klik op "Implementeren"
+6. Kopieer de deployment URL die wordt weergegeven voor toegang tot de applicatie
 
-## Veelvoorkomende problemen
+## Stap 6: Bijwerken van de README
 
-### Modules worden niet correct geladen
+1. Update de README.md van het project met de deployment URL
+2. Voeg eventuele specifieke instructies toe voor gebruikers van de applicatie
 
-**Symptoom**: Je krijgt fouten zoals "getTreinPosities is not defined"
+## Opmerkingen
 
-**Oplossing**: Zorg ervoor dat je alle bestanden in de juiste volgorde hebt toegevoegd. De afhankelijkheden moeten in de juiste volgorde worden geladen, beginnend met `Config.js`.
-
-### Inconsistente caching
-
-**Symptoom**: Oude gegevens worden getoond of API-verzoeken lijken niet te werken
-
-**Oplossing**: Wis de cache in het Apps Script-project. Ga naar "Project Settings" > "Script Properties" en verwijder alle bestaande cachewaarden.
-
-### API-sleutel problemen
-
-**Symptoom**: Je krijgt authenticatiefouten van de NS API
-
-**Oplossing**: Controleer of de API-sleutel correct is ingesteld in de Script Properties. Controleer ook of de sleutel nog geldig is en de juiste machtigingen heeft.
-
-## Extra informatie
-
-### Ondersteuning voor Apps Script-modules
-
-Google Apps Script heeft geen native ondersteuning voor ES6-modules of CommonJS-modules. In plaats daarvan wordt alle code in de globale scope uitgevoerd in de volgorde waarin de bestanden zijn toegevoegd aan het project.
-
-### Toekomstige verbeteringen
-
-Er loopt een onderzoek naar een betere moduleringsstrategie. Opties zijn:
-
-1. Een bundler-script dat alle modules samenvoegt in één bestand
-2. Een clasp-gebaseerde workflow met pre-processing
-3. Closure Compiler voor optimalisatie en bundeling
-
-Zie issue #3 voor meer details over deze ontwikkeling.
+- Zorg ervoor dat je de NS API-sleutel geheim houdt en niet deelt in publieke repositories
+- De applicatie vereist de volgende OAuth scopes, die automatisch worden geconfigureerd:
+  - `https://www.googleapis.com/auth/script.external_request` (Voor het maken van externe API requests)
+  - `https://www.googleapis.com/auth/script.scriptapp` (Voor het uitvoeren van het script als web-app)
