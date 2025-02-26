@@ -40,13 +40,13 @@ Om deze applicatie te gebruiken heb je nodig:
 - Toegang tot Google Apps Script
 - Een NS API-sleutel (te verkrijgen via de NS API Portal)
 
-## Installatie
+## Installatie & Deployment
 
+Zie [DEPLOYMENT.md](./DEPLOYMENT.md) voor gedetailleerde instructies over hoe de code te deployen naar Google Apps Script.
+
+Korte samenvatting:
 1. Kopieer de bestanden naar je Google Apps Script project
 2. Configureer je NS API-sleutel in de Script Properties
-   - Ga naar 'Project Settings'
-   - Klik op 'Script Properties'
-   - Voeg een eigenschap toe met naam 'NS_API_KEY' en je NS API-sleutel als waarde
 3. Implementeer het script als web-app (Deploy > New deployment > Web app)
 4. Geef de benodigde autorisaties
 
@@ -78,6 +78,17 @@ De applicatie is volledig modulair opgezet en maakt gebruik van:
 - Namespaces voor het vermijden van conflicten
 - JSDoc documentatie voor alle modules en functies
 - Gestandaardiseerde foutafhandeling en logging
+
+## Bestanden
+
+- `Main.js`: Hoofdmodule die verzoeken afhandelt
+- `ApiService.js`: Maakt API-verzoeken aan de NS API
+- `CacheService.js`: Beheert caching van data
+- `ErrorHandler.js`: Standaardiseert foutafhandeling
+- `Config.js`: Centrale configuratie
+- `Index.html`: Frontend hoofdbestand
+- `frontend/css/main.html`: CSS voor de applicatie
+- `frontend/js/*.html`: JavaScript modules voor de frontend
 
 ## Licentie
 
