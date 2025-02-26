@@ -60,7 +60,7 @@ Deze applicatie maakt gebruik van:
 
 - **Programmeertaal**: JavaScript (Google Apps Script)
 - **Versie**: 1.0.0
-- **Script ID**: AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP
+- **Script ID**: 1EVkPWScAsUenvx7cZBDdr-6yKmZh_nZq7QZnZtAUjIb0ZJ5yemckku4t
 - **Frontend Libraries**:
   - Leaflet.js v1.9.4 voor kaartintegratie
   - Bootstrap v4.5.2 voor responsive UI
