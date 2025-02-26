@@ -23,7 +23,7 @@ Het project bestaat uit de volgende componenten:
     - Afhankelijkheden: ApiService, ErrorHandler
 
 ### ApiService.js
-- **Status**: Geïmplementeerd
+- **Status**: Geïmplementeerd en uitgebreid met verbeterde caching
 - **Bestandsnaam**: ApiService.js
 - **Functionaliteit**: Afhandeling van API-communicatie met de NS API
 - **Belangrijkste functies**:
@@ -41,9 +41,16 @@ Het project bestaat uit de volgende componenten:
     - Parameters: trainNumber (treinnummer)
     - Return: Object met volgende halte en vertragingsinformatie
     - Afhankelijkheden: CacheService, Config
+  - `getCacheStatistics()`: Haalt cachestatistieken op voor monitoring
+    - Return: Statistieken over cache-gebruik
+  - `resetCacheStatistics()`: Reset cache statistieken
+    - Return: Resultaat van de reset
+  - `refreshTrainData(trainNumber)`: Forceert het verversen van data voor een specifieke trein
+    - Parameters: trainNumber (treinnummer om te verversen)
+    - Return: Resultaat van de operatie
 
 ### CacheService.js
-- **Status**: Geïmplementeerd
+- **Status**: Geïmplementeerd en uitgebreid met geavanceerde functionaliteit
 - **Bestandsnaam**: CacheService.js
 - **Functionaliteit**: Beheert caching voor API-responses
 - **Belangrijkste functies**:
@@ -51,6 +58,19 @@ Het project bestaat uit de volgende componenten:
     - Parameters: cacheKey (unieke sleutel), fetchFunction (functie om data op te halen), expirationSec (cache-levensduur)
     - Return: Opgevraagde data
     - Afhankelijkheden: ErrorHandler, Config
+  - `buildCacheKey(prefix, key, params)`: Bouwt consistente cache-sleutels
+    - Parameters: prefix (type prefix), key (basissleutel), params (optionele parameters)
+    - Return: Volledige cache-sleutel
+  - `getCacheStats()`: Haalt cache-statistieken op
+    - Return: Object met cache hit/miss statistieken
+  - `resetCacheStats()`: Reset cache-statistieken
+    - Return: Status-object
+  - `invalidateCache(cacheKey)`: Invalideert een specifieke cache-entry
+    - Parameters: cacheKey (te invalideren sleutel)
+    - Return: Status-object
+  - `hasFreshCache(trainNumber)`: Controleert of er recente cache is voor een trein
+    - Parameters: trainNumber (te controleren treinnummer)
+    - Return: Boolean die aangeeft of cache beschikbaar is
 
 ### ErrorHandler.js
 - **Status**: Geïmplementeerd
@@ -67,17 +87,18 @@ Het project bestaat uit de volgende componenten:
     - Return: JSON response met fout
 
 ### Config.js
-- **Status**: Geïmplementeerd
+- **Status**: Geïmplementeerd en uitgebreid met gedetailleerde cache-instellingen
 - **Bestandsnaam**: Config.js
 - **Functionaliteit**: Centrale configuratiemodule
 - **Belangrijkste instellingen**:
-  - Cache-levensduur
+  - Gedifferentieerde cache-levensduur (TTL) per datatype
+  - Cache-sleutel prefixes voor verschillende data types
   - Retry-instellingen
   - API-endpoints
   - Foutdefinities
 
 ### Frontend (Index.html)
-- **Status**: Verbeterd met betere foutweergave
+- **Status**: Verbeterd met cache-gerelateerde UI-elementen
 - **Bestandsnaam**: Index.html
 - **Functionaliteit**: Visualiseert treinposities op een kaart en biedt gebruikersinteractie
 - **Belangrijkste componenten**:
@@ -87,6 +108,9 @@ Het project bestaat uit de volgende componenten:
   - Weergave van treindetails (inclusief vertraging met kleurcodering)
   - Foutafhandeling met visuele status-indicator en error toast
   - Dynamische script ID detectie
+  - Cache-statistiekenpaneel
+  - Data-bron indicatoren (live vs. cached)
+  - Handmatige ververs-functionaliteit voor cache-items
 
 ### Configuratie
 - **Status**: Basis aanwezig
@@ -99,7 +123,9 @@ Het project bestaat uit de volgende componenten:
 - ✅ Verbeterde cache-functionaliteit met specifieke caching per trein/journey is geïmplementeerd
 - ✅ API-communicatie is robuuster gemaakt met retry-mechanisme
 - ✅ Documentation toegevoegd (ARCHITECTURE.md, DEPLOYMENT.md, voorbeelden)
-- Frontend UI is bijgewerkt met verbeterde foutmeldingen en status-indicatoren
+- ✅ Frontend UI is bijgewerkt met verbeterde foutmeldingen en status-indicatoren
+- ✅ Geavanceerde cache-strategieën met gedifferentieerde TTL's geïmplementeerd
+- ✅ Cache-statistieken en monitoring toegevoegd
 
 ## 5. Volgende stappen
 
@@ -107,7 +133,7 @@ Het project bestaat uit de volgende componenten:
 1. ✅ Verbeteren foutafhandeling en logging voor NS API-integratie (Afgerond in issue #1)
 2. ✅ Opsplitsen van Code.js in meerdere modules (Afgerond in issue #5)
 3. ✅ Documenteren van de nieuwe modulaire codestructuur (Afgerond in issue #4)
-4. Uitbreiden van de cache-functionaliteit voor betere performance (Issue #2)
+4. ✅ Uitbreiden van de cache-functionaliteit voor betere performance (Afgerond in issue #2)
 5. Opsplitsen van Index.html in modulaire frontend-componenten (Issue #6)
 6. Script ID: AKfycbyGbGRas6dTNB8aFcv7Z62kNpq6RRdEanjkrvXXX9rHihmFV-Wy-oBrM_GqXbN0FNgP
 
@@ -120,4 +146,4 @@ Het project bestaat uit de volgende componenten:
 6. Verbeteren van de UI met responsieve elementen
 7. Toevoegen van een dashboard met statistieken
 
-Alle must-haves zijn essentieel voor de basiswerking en betrouwbaarheid van de applicatie. Zodra issues #2 en #6 zijn afgerond, zullen alle must-haves voor de basiswerking van de applicatie voltooid zijn. De nice-to-have functies zoals issue #3 en de overige punten zijn verbeteringen en uitbreidingen die de functionaliteit en gebruikerservaring kunnen verbeteren, maar niet noodzakelijk zijn voor de kernfunctionaliteit.
+Alleen issue #6 is nog een must-have voor de basiswerking van de applicatie. Zodra deze is afgerond, zullen alle must-haves voor de basiswerking van de applicatie voltooid zijn. De nice-to-have functies zoals issue #3 en de overige punten zijn verbeteringen en uitbreidingen die de functionaliteit en gebruikerservaring kunnen verbeteren, maar niet noodzakelijk zijn voor de kernfunctionaliteit.
